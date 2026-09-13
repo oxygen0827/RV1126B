@@ -1,0 +1,22 @@
+.DS_Store
+._*
+
+# Upstream source trees and vendor packages are local evidence, not project code.
+reference/
+upstream/
+githubdoc/
+tmp/
+
+# Firmware, images, SDK build trees and generated output.
+out/
+build/
+*.img
+*.bin
+*.zip
+*.tar.gz
+*.7z
+*.o
+*.a
+*.so
+*.ko
+*.log

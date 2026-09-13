@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Luckfox Aura RV1126B 官方资料报告</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; background: #f7f8fa; color: #1f2937; font: 14px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    main { max-width: 1120px; margin: 0 auto; padding: 28px 22px 56px; }
+    header { display: flex; justify-content: space-between; gap: 20px; align-items: flex-start; margin-bottom: 22px; }
+    h1 { margin: 0 0 4px; font-size: 26px; letter-spacing: -0.02em; }
+    h2 { margin: 30px 0 8px; font-size: 19px; }
+    h3 { margin: 22px 0 6px; font-size: 16px; }
+    p { margin: 7px 0 12px; }
+    .muted { color: #64748b; font-size: 12px; }
+    .cards { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 18px 0 24px; }
+    .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 14px; }
+    .card .label { color: #64748b; font-size: 12px; }
+    .card .value { margin-top: 4px; font-weight: 600; }
+    section { margin-top: 24px; }
+    table { width: 100%; border-collapse: collapse; background: #fff; border: 1px solid #e2e8f0; font-size: 13px; }
+    th, td { border-bottom: 1px solid #e2e8f0; padding: 9px 10px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; color: #334155; font-weight: 600; }
+    tr:last-child td { border-bottom: 0; }
+    tr:hover td { background: #f8fafc; }
+    a { color: #2563eb; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .badge { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 600; white-space: nowrap; }
+    .required { background: #fee2e2; color: #991b1b; }
+    .recommended { background: #dbeafe; color: #1e40af; }
+    .optional { background: #e5e7eb; color: #4b5563; }
+    .callout { background: #fffbeb; border: 1px solid #fde68a; border-radius: 8px; padding: 12px 14px; }
+    .evidence { background: #f1f5f9; border-radius: 8px; padding: 12px 14px; }
+    code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
+    @media (max-width: 760px) { header { display: block; } .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } table { display: block; overflow-x: auto; white-space: normal; } }
+    @media print { body { background: #fff; } main { padding: 0; } .card, table { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div><h1>Luckfox Aura RV1126B 官方资料报告</h1><div class="muted">按 Luckfox 官方 Wiki、GitHub 与 Google Drive 整理；本地仓库初始化于 2026-09-13</div></div>
+    <div class="muted">来源策略：官方一手资料优先</div>
+  </header>
+
+  <section>
+    <h2>芯片识别</h2>
+    <div class="cards">
+      <div class="card"><div class="label">官方板名</div><div class="value">Luckfox Aura</div></div>
+      <div class="card"><div class="label">SoC</div><div class="value">Rockchip RV1126B</div></div>
+      <div class="card"><div class="label">处理器 / NPU</div><div class="value">4× Cortex-A53 @ 1.6 GHz / 3 TOPS</div></div>
+      <div class="card"><div class="label">系统 / SKU</div><div class="value">Buildroot、Debian 13 / 02000–04064</div></div>
+    </div>
+    <p>用户称“Luckfox Pico RV1126B”，但官网把 RV1126B 板型命名为 Luckfox Aura；Luckfox Pico 入口对应 RV1103/RV1106，不能混用其设备树、镜像或硬件结论。</p>
+  </section>
+
+  <section><h2>硬件开发资料</h2><p>用于确认 SoC 电气限制、SKU、板级连接器、引脚复用、CSI/DSI、高速接口和机械边界。</p>
+    <table><thead><tr><th>优先级</th><th>类别</th><th>资料</th><th>来源</th><th>链接</th><th>备注</th></tr></thead><tbody>
+      <tr><td><span class="badge required">必需</span></td><td>数据手册</td><td>RV1126B Datasheet V1.1 (2025-04-28)</td><td>LuckfoxTECH 官方 GitHub</td><td><a href="upstream/luckfox-aura-docs/Docs/datasheets/Rockchip_RV1126B_Datasheet_V1.1-20250428.pdf">本地 PDF</a> · <a href="https://github.com/LuckfoxTECH/luckfox-aura-docs/blob/main/Docs/datasheets/Rockchip_RV1126B_Datasheet_V1.1-20250428.pdf">上游</a></td><td>SoC 级限制、封装、复用</td></tr>
+      <tr><td><span class="badge required">必需</span></td><td>原理图</td><td>Luckfox-Aura.pdf</td><td>LuckfoxTECH 官方 GitHub</td><td><a href="upstream/luckfox-aura-docs/Hardware/Schematic/Luckfox-Aura.pdf">本地 PDF</a> · <a href="https://github.com/LuckfoxTECH/luckfox-aura-docs/blob/main/Hardware/Schematic/Luckfox-Aura.pdf">上游</a></td><td>USB、PHY、Wi-Fi/BT、CSI/DSI、电源</td></tr>
+      <tr><td><span class="badge required">必需</span></td><td>产品规格</td><td>四个 Aura SKU、供电和接口</td><td>Luckfox 官方 Wiki</td><td><a href="reference/luckfox-aura/wiki/Introduction.html">本地快照</a> · <a href="https://wiki.luckfox.com/zh/Luckfox-Aura/Introduction/">官方页</a></td><td>先核对板上丝印再选镜像</td></tr>
+      <tr><td><span class="badge recommended">推荐</span></td><td>机械/CAD</td><td>STEP、顶/底板 DWG</td><td>LuckfoxTECH 官方 GitHub</td><td><a href="upstream/luckfox-aura-docs/Hardware/">本地目录</a> · <a href="https://github.com/LuckfoxTECH/luckfox-aura-docs/tree/main/Hardware">上游目录</a></td><td>结构和安装参考</td></tr>
+      <tr><td><span class="badge recommended">推荐</span></td><td>接口指南</td><td>GPIO、IIC、POE、PWM、RTC、SPI、UART、USB</td><td>Luckfox 官方 Wiki</td><td><a href="reference/luckfox-aura/wiki/Pinout.html">本地快照</a> · <a href="https://wiki.luckfox.com/zh/Luckfox-Aura/Pinout">官方页</a></td><td>40-pin 电平/复用需实测确认</td></tr>
+    </tbody></table>
+  </section>
+
+  <section><h2>软件开发资料</h2><p>用于 SDK 构建、Buildroot/Debian 定制、媒体/ISP 和 RKNN 推理开发。</p>
+    <table><thead><tr><th>优先级</th><th>类别</th><th>资料</th><th>来源</th><th>链接</th><th>备注</th></tr></thead><tbody>
+      <tr><td><span class="badge required">必需</span></td><td>SDK</td><td>Luckfox_Aura_SDK_260521.tar.gz</td><td>Luckfox 官方 Google Drive</td><td><a href="reference/luckfox-aura/sdk/Luckfox_Aura_SDK_260521.tar.gz">本地文件</a> · <a href="https://drive.google.com/drive/folders/1tUdki0eWttQA0BSPb3XZw5D_3XN4tLPn">官方目录</a></td><td>Ubuntu 22.04 x86_64</td></tr>
+      <tr><td><span class="badge required">必需</span></td><td>构建文档</td><td>SDK 镜像编译、Buildroot、内核配置</td><td>Luckfox 官方 Wiki</td><td><a href="reference/luckfox-aura/wiki/SDK-Image-Compilation.html">本地快照</a> · <a href="https://wiki.luckfox.com/zh/Luckfox-Aura/SDK">官方页</a></td><td>lunch、BoardConfig、权限边界</td></tr>
+      <tr><td><span class="badge required">必需</span></td><td>AI SDK</td><td>RKNN Toolkit2</td><td>airockchip 官方 GitHub</td><td><a href="upstream/rknn-toolkit2/">本地目录</a> · <a href="https://github.com/airockchip/rknn-toolkit2">上游</a></td><td>模型转换、量化、运行库</td></tr>
+      <tr><td><span class="badge recommended">推荐</span></td><td>AI 例程</td><td>RKNN Model Zoo</td><td>airockchip 官方 GitHub</td><td><a href="upstream/rknn_model_zoo/">本地目录</a> · <a href="https://github.com/airockchip/rknn_model_zoo">上游</a></td><td>C/Python 推理例程</td></tr>
+      <tr><td><span class="badge recommended">推荐</span></td><td>板级例程</td><td>Aura Code 目录</td><td>LuckfoxTECH 官方 GitHub</td><td><a href="upstream/luckfox-aura-docs/Code/">本地目录</a> · <a href="https://github.com/LuckfoxTECH/luckfox-aura-docs/tree/main/Code">上游</a></td><td>按上游实际示例选用</td></tr>
+    </tbody></table>
+  </section>
+
+  <section><h2>烧录编程 / 量产测试资料</h2><p>用于 MicroSD/eMMC 恢复、Loader/MaskROM、USB 驱动和 Windows/Linux/macOS 工具链。</p>
+    <table><thead><tr><th>优先级</th><th>类别</th><th>资料</th><th>来源</th><th>链接</th><th>备注</th></tr></thead><tbody>
+      <tr><td><span class="badge required">必需</span></td><td>系统镜像</td><td>Buildroot/Debian 13；eMMC/MicroSD</td><td>Luckfox 官方 Google Drive</td><td><a href="reference/luckfox-aura/firmware/standard/">本地目录</a> · <a href="https://drive.google.com/drive/folders/18mgJq8f4XEfrKYnjfJiPbWD6yyK-RMIN">官方 Images</a></td><td>按 SKU 和介质严格匹配</td></tr>
+      <tr><td><span class="badge required">必需</span></td><td>命令行刷写</td><td>upgrade_tool v2.17/v2.25/v2.44</td><td>Luckfox 官方 Wiki</td><td><a href="reference/luckfox-aura/tools/">本地目录</a> · <a href="https://wiki.luckfox.com/Luckfox-Aura/Downloads">官方页</a></td><td>Linux/macOS</td></tr>
+      <tr><td><span class="badge required">必需</span></td><td>Windows 刷写</td><td>SocToolKit V2.2、RKDevTool v3.31</td><td>Luckfox 官方 Release/Drive</td><td><a href="reference/luckfox-aura/tools/">本地目录</a> · <a href="https://github.com/LuckfoxTECH/luckfox-aura-docs/releases/tag/v0.0.1">Release</a></td><td>Loader/MaskROM 与分区刷写</td></tr>
+      <tr><td><span class="badge recommended">推荐</span></td><td>USB 驱动</td><td>DriverAssistant v5.13</td><td>Luckfox 官方 Release</td><td><a href="reference/luckfox-aura/tools/DriverAssitant_v5.13.zip">本地文件</a> · <a href="https://github.com/LuckfoxTECH/luckfox-aura-docs/releases/tag/v0.0.1">Release</a></td><td>Windows RK USB 驱动</td></tr>
+      <tr><td><span class="badge recommended">推荐</span></td><td>写卡/调试</td><td>balenaEtcher、SDCardFormatter、adb_fastboot、MobaXterm</td><td>Luckfox 官方 Release</td><td><a href="reference/luckfox-aura/tools/">本地目录</a> · <a href="https://github.com/LuckfoxTECH/luckfox-aura-docs/releases/tag/v0.0.1">Release</a></td><td>MicroSD、ADB、串口/SSH</td></tr>
+    </tbody></table>
+  </section>
+
+  <section><h2>最小下载集</h2><ol><li>RV1126B Datasheet、Aura 原理图、产品规格、Pinout。</li><li>SDK 260521 与 Ubuntu 22.04 构建文档。</li><li>一套匹配实物 SKU/介质的官方镜像。</li><li>upgrade_tool；Windows 另备 DriverAssistant、RKDevTool 或 SocToolKit。</li><li>RKNN Toolkit2、RKNN Model Zoo。</li></ol></section>
+  <section><h2>推荐阅读顺序</h2><p>产品介绍 → 原理图 → Getting Started → SDK 镜像编译 → Pinout/外设指南 → RKNN Toolkit2/Model Zoo。</p></section>
+  <section><h2>缺失或风险项</h2><div class="callout"><ul><li>尚未确认具体 Aura SKU，不能在未核对丝印时选择 eMMC 镜像。</li><li>尚未连接实板，串口、供电、启动、网络、无线、USB、CSI/DSI、音频和 RTC 均无实测结论。</li><li>CH334F、HUSB311BLA、RTL8211F/MAE0621A、SKI.WB800D80S.1、WS3221C 等外设型号已从原理图识别，但官方配套 datasheet/射频指南仍待补。</li><li>SDK 与大镜像来自官方 Drive；下载后要保留 SHA-256。macOS 大小写不敏感卷不作为 Linux SDK 编译环境。</li></ul></div></section>
+  <section><h2>检索证据</h2><div class="evidence"><p>核验日期：2026-09-13。主要证据为 <a href="https://wiki.luckfox.com/zh/Luckfox-Aura/Introduction/">Aura 产品介绍</a>、<a href="https://wiki.luckfox.com/zh/Luckfox-Aura/Downloads">官方下载页</a>、<a href="https://github.com/LuckfoxTECH/luckfox-aura-docs">官方资料仓库</a>、<a href="https://github.com/airockchip/rknn-toolkit2">RKNN Toolkit2</a>、<a href="https://github.com/airockchip/rknn_model_zoo">RKNN Model Zoo</a> 和官方 Google Drive 目录。资料仓库当前 main commit 为 <code>7264f6eab0562195b1d0c53969fff6cb7df360c9</code>，工具 release 为 <code>v0.0.1</code>。</p></div></section>
+</main>
+</body>
+</html>
