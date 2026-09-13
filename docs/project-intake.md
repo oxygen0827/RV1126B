@@ -8,7 +8,7 @@
 - 创建可重复执行的官方资源下载脚本，支持断点续传和已存在文件跳过。
 - 从官方 Wiki、Aura 原理图和产品页整理 SKU、接口、供电、SDK 环境和外设芯片证据。
 
-当前 `luckfox-aura-docs` main 快照未包含 README 规划的 `Code/` 目录；示例代码以 SDK、RKNN Model Zoo 和后续官方 Drive 资源为准。
+当前 `luckfox-aura-docs` main 快照未包含 README 规划的 `Code/` 目录；示例代码以 SDK、RKNN Model Zoo 和后续官方 Drive 资源为准。Hynetek HUSB311 页面公开附件经标题核验实际为 HUSB238/参考设计，已隔离，不作为 HUSB311 依据。
 
 ## 尚未完成的硬件验证
 

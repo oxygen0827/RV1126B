@@ -29,7 +29,7 @@
 | 型号 | 位置/功能 | 资料状态 |
 | --- | --- | --- |
 | CH334F | USB 2.0 Hub | WCH 官方产品页可核验；具体封装/配置仍需数据手册 |
-| HUSB311BLA | USB Type-C PD/TCPC | Hynetek 官方产品页可核验；BLA 封装数据手册未随 Aura 发布 |
+| HUSB311BLA | USB Type-C PD/TCPC | Hynetek 官方产品页可核验；该页可下载附件当前为 HUSB238/参考设计而非 HUSB311，已隔离到 `reference/luckfox-aura/peripherals/hynetek-unmatched/` |
 | RTL8211F-CG / MAE0621A-Q3C | 千兆以太网 PHY/变压器 | 原理图型号已核验；未在 Aura 官方资料包发现配套 datasheet |
 | SKI.WB800D80S.1 | Wi-Fi 6/Bluetooth 5.4 模组 | 官方产品页未给出完整模组规格书，待补证据 |
 | WS3221C、DIO7003HEST5、SGM2590D | USB/电源路径保护与负载开关 | 原理图已核验；未在官方 Aura 包中发现对应 datasheet |

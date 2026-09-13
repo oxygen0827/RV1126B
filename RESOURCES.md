@@ -87,7 +87,7 @@ Aura 原理图确认的型号如下。官方 Aura 资料包没有随附完整外
 | 型号 | 功能 | 已核验官方入口 | 状态 |
 | --- | --- | --- | --- |
 | CH334F | USB 2.0 Hub | [WCH CH334/CH335 产品页](https://www.wch.cn/products/CH334.html) | 产品入口已核验；具体版本手册待补 |
-| HUSB311BLA | USB Type-C PD/TCPC | [Hynetek HUSB311 产品页](https://en.hynetek.com/2421.html) | 产品入口已核验；BLA 封装手册待补 |
+| HUSB311BLA | USB Type-C PD/TCPC | [Hynetek HUSB311 产品页](https://en.hynetek.com/2421.html) | 产品入口已核验；该页公开附件当前解析为 HUSB238/参考设计，已放入 `reference/luckfox-aura/peripherals/hynetek-unmatched/`，不能当作 HUSB311 手册 |
 | RTL8211F-CG / MAE0621A-Q3C | 千兆以太网 PHY/网络变压器 | [Aura 原理图](https://github.com/LuckfoxTECH/luckfox-aura-docs/blob/main/Hardware/Schematic/Luckfox-Aura.pdf) | 型号已识别；官方配套手册待补 |
 | SKI.WB800D80S.1 | Wi-Fi 6/Bluetooth 5.4 模组 | [Aura 产品页](https://wiki.luckfox.com/zh/Luckfox-Aura/Introduction/) | 型号已识别；模组规格书/射频指南待补 |
 | WS3221C、DIO7003HEST5、SGM2590D | 电源/USB 路径开关与保护 | [Aura 原理图](https://github.com/LuckfoxTECH/luckfox-aura-docs/blob/main/Hardware/Schematic/Luckfox-Aura.pdf) | 型号已识别；厂商原始手册待补 |
