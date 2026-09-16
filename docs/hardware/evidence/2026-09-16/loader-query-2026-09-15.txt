@@ -1,0 +1,28 @@
+Evidence date: 2026-09-15
+Archived: 2026-09-16
+Provenance: result excerpts transcribed from this conversation's exec_command output; whitespace normalized, values preserved; not a new capture.
+Tool: upgrade_tool v2.44 for macOS
+Commands: LD, RCI, RFI, RID, PL (read-only)
+User context: no MicroSD card inserted; independent 5V/3A power adapter.
+
+List of rockusb connected(1)
+DevNo=1 Vid=0x2207,Pid=0x110f,LocationID=134 Mode=Loader SerialNo=a5ccf098e8d689c4
+Chip Info: 46 30 31 31 0 0 0 0 0 0 0 0 0 0 0 0
+Flash Info:
+    Flash Size: 7456MB,value=0xe90000
+    Block Size: 512KB,value=1024
+    Page Size: 2KB,value=4
+    LBA Size: 1
+    ECC Bits: 0
+    Access Time: 40
+    Flash CS: <0>
+Flash ID:45 4D 4D 43 20
+Partition Info(env):
+NO  LBA        Size       Name
+01  0x00000000 0x00000040 env
+02  0x00000040 0x00000400 idblock
+03  0x00000440 0x00002000 uboot
+04  0x00002440 0x00005800 boot
+05  0x00007c40 0x00200000 userdata
+06  0x00207c40 0x00400000 oem
+07  0x00607c40 0xffffffff rootfs

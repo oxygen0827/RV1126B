@@ -4,6 +4,7 @@
 
 ## 已整理内容
 
+- [当前实物板卡档案](docs/hardware/BOARD.md)：RV1126B、8 GB eMMC 已确认；1 GB RAM 为待验证推测，正式 SKU 未确认。附实物照片与 Loader 记录。
 - [资料索引](RESOURCES.md)：官方仓库、SDK、镜像、烧录工具、硬件资料、Wiki 和外设芯片证据。
 - [硬件参考](docs/hardware-reference.md)：Aura SKU、供电、存储、USB、以太网、Wi-Fi/BT、CSI/DSI、40-pin 和已知风险。
 - [首次上板与恢复](docs/board-bringup.md)：SKU 核对、MicroSD/eMMC 选择、MaskROM/Loader、串口和最小验收顺序。
@@ -17,6 +18,7 @@
 ```text
 RV1126B/
 ├── docs/                         # 提炼后的开发/上板文档
+│   └── hardware/                 # BOARD、PINMAP、PITFALLS 与 evidence/ 实物证据
 ├── scripts/                      # 可重复执行的资料与开发脚本
 ├── reference/luckfox-aura/       # SDK、镜像、烧录工具、Wiki 快照（不入库）
 ├── upstream/                     # 官方 GitHub 源码仓库（不入库）
@@ -29,6 +31,6 @@ RV1126B/
 ## 初始化结论
 
 - 资料对象应称为 **Luckfox Aura RV1126B**；Luckfox Wiki 导航中的 Luckfox Pico 入口对应 RV1103/RV1106，不是本板。
-- 官方下载页列出 `luckfox-aura-docs`，其目录包含 `Docs/`、`Hardware/`、`Code/`、工具和系统资源；本地已浅克隆当前主分支并记录 commit。
+- 官方下载页列出 `luckfox-aura-docs`；本地快照实际包含 `Docs/` 和 `Hardware/`，README 规划的 `Code/` 尚未提供。示例见 RKNN Model Zoo 和 SDK。
 - 当前官方通用镜像为 2026-06-06 构建的 Buildroot/Debian 13 eMMC 与 MicroSD 版本；显示适配镜像另行归档。
 - SDK 文档明确要求 Ubuntu 22.04 x86_64；macOS 本地副本只做阅读和索引，不作为 SDK 编译环境。

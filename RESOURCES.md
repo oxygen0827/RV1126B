@@ -4,6 +4,7 @@
 
 ## 芯片与板型识别
 
+- **当前实物（2026-09-16 更新）**：[板卡档案及本地证据](docs/hardware/BOARD.md)。RV1126B、板载 8 GB eMMC 已确认；1 GB RAM 仅为料号推测，正式 SKU 待确认。下列官网配置不代替实物档案。
 - **用户原始目标**：Luckfox Pico RV1126B。
 - **官网规范名称**：Luckfox Aura RV1126B。Luckfox Pico 官网入口实际对应 RV1103/RV1106，本项目不要沿用该名称。
 - **SoC**：Rockchip RV1126B，四核 Cortex-A53 @ 1.6 GHz，NPU 3 TOPS，4K H.265/H.264 编解码，最大 12M@30fps ISP 输入。
@@ -61,7 +62,7 @@
 | 优先级 | 资料 | 本地位置 | 官方来源/备注 |
 | --- | --- | --- | --- |
 | 必需 | Buildroot/Debian 13 MicroSD 镜像 | `reference/luckfox-aura/firmware/standard/` | 官方 Drive `Images` 目录；与 eMMC 版本不可混用 |
-| 必需 | Buildroot/Debian 13 eMMC 镜像 | `reference/luckfox-aura/firmware/standard/` | 仅适用于 `02064/04064`；先核对 SKU |
+| 必需 | Buildroot/Debian 13 eMMC 镜像 | `reference/luckfox-aura/firmware/standard/` | 官网下载集；当前 8 GB eMMC 实板的 DDR/板级配置及容量适配尚待核验 |
 | 必需 | upgrade_tool Linux/macOS | `reference/luckfox-aura/tools/upgrade_tool_v*.zip` | [官方 Wiki 资源](https://wiki.luckfox.com/Luckfox-Aura/Downloads) |
 | 必需 | SocToolKit V2.2 | `reference/luckfox-aura/tools/SocToolKit_V2.2.zip` | 官方 GitHub Release；Windows 镜像/分区刷写 |
 | 推荐 | RKDevTool v3.31 | `reference/luckfox-aura/tools/RKDevTool_Release_v3.31.zip` | 官方 Drive Tools 目录；Windows Loader/MaskROM |
@@ -113,7 +114,7 @@ Aura 原理图确认的型号如下。官方 Aura 资料包没有随附完整外
 ## 缺失或风险项
 
 - 尚未确认用户手上具体 Aura SKU；镜像选择必须在上板前完成。
-- 尚未接实板，未有串口、供电、启动、网络、Wi-Fi/BT、USB、CSI/DSI、音频和 RTC 的实测证据。
+- 已在本板完成 USB Loader 查询并归档容量/分区表；正常启动、DDR、串口、网络、无线及其余外设待验证，供电方式由用户确认但电气参数未实测。
 - 外设芯片 datasheet、BOM 变体、PCB 布线文件、无线天线/认证资料未在官方 Aura 包中提供，需要向原厂/板卡供应方补齐。
 - SDK 与大镜像来自官方 Google Drive，文件可能随时间替换；本地下载后应保留 SHA-256 与文件大小。
 - 当前 `luckfox-aura-docs` main commit `7264f6e` 的实际树只有 `Docs/` 与 `Hardware/`，板级例程不能假设已随仓库提供。

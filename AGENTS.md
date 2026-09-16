@@ -4,7 +4,8 @@
 
 - 本工作区对应 Luckfox Aura（官方型号页命名为 Luckfox-Aura-RV1126B），不是 Luckfox Pico RV1103/RV1106 系列。
 - SoC 为 Rockchip RV1126B，四核 Arm Cortex-A53 @ 1.6 GHz，NPU 标称 3 TOPS，支持 Buildroot 和 Debian 13。
-- 官方板型有 `Luckfox-Aura-02000`、`04000`、`02064`、`04064` 四种 SKU；差异主要是 2/4 GB LPDDR4X 与是否 64 GB eMMC。先以板上丝印确认 SKU，再选镜像。
+- 2026-09-13 官网快照列有 `Luckfox-Aura-02000`、`04000`、`02064`、`04064`，不代表手中实板的配置。
+- 当前实物以 [板卡档案](docs/hardware/BOARD.md) 为准：RV1126B；8 GB eMMC 已由照片及 Loader 7456 MiB 读数确认；内存料号 `ONLP4D256M32H` 初步推测 1 GB，未实测；正式 SKU/PCB 版本待确认。不得把 1 GB、LPDDR4X 类型或 02064/04064 SKU 当作已验证事实。
 - 官方资料仓库是 `upstream/luckfox-aura-docs/`；其中的 `Docs/`、`Hardware/` 是上游快照，不在里面直接改产品代码。
 - `reference/luckfox-aura/` 保存可复现的 SDK、镜像、烧录工具和 Wiki 快照；这些大文件默认不入 Git。
 
@@ -13,7 +14,8 @@
 - 没有实板、串口日志和当前 SKU 证据时，不修改设备树、PMIC、DDR、摄像头、电源、以太网 PHY 或启动介质配置。
 - 不把 RV1106 的单核/小内存/设备树结论复制到 RV1126B。RV1126B 的板载外设和接口必须以 Aura 原理图、官方 Wiki 和实测为准。
 - SDK 官方编译环境为 Ubuntu 22.04 x86_64。macOS 只做资料索引、源码阅读和轻量脚本，不在大小写不敏感卷上声称完成 SDK 编译。
-- 默认优先使用 MicroSD 镜像进行恢复；eMMC 镜像只用于确认 SKU 含 eMMC 的板子。刷写前核对镜像类型、介质和备份策略。
+- 当前板载 eMMC 约 8 GB，已下载镜像适配性尚未验证。刷写前确认板级/DDR 配置、目标介质、分区容量和备份；不能仅凭官网 SKU 名选择镜像。MicroSD 恢复同样先核验本板适配性。
+- 外接引脚分配统一维护在 `docs/hardware/PINMAP.md`；通用问题记在 `docs/hardware/PITFALLS.md`，已确认事实与推测分开记录。
 - 所有新增驱动或应用先放在 `apps/`、`scripts/` 或独立工作树；不要直接改 `upstream/`。
 
 ## 资料更新

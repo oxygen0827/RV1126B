@@ -1,9 +1,11 @@
 # 首次上板与恢复
 
+当前实板有 8 GB eMMC，内存初步推测为 1 GB，正式 SKU 未确认；见 [板卡档案](hardware/BOARD.md)。下列镜像路径是资料入口，尚未在本板验证适配性。
+
 ## 0. 上板前核对
 
-1. 读取板上丝印，确定 `02000`、`04000`、`02064` 或 `04064` SKU。
-2. 只有 `02064/04064` 选择 eMMC 镜像；无 64 后缀先使用 MicroSD 镜像。
+1. 核对实物档案、PCB 版本与 DDR 配置；不要把当前板子硬套到官网四个 SKU。
+2. 刷写前备份，确认目标介质、镜像板级适配与分区总容量；本板 eMMC 是约 8 GB，不按 64 GB 配置处理。
 3. 准备可靠的 Class 10 或更高等级 MicroSD 卡。官方建议优先使用已验证的 SanDisk 或 SmartQuickly 卡。
 4. 准备高品质 5 V/3 A Type-C 电源。不要用电脑 USB、移动电源、PD/快充充电器替代默认电源。
 5. USB 数据线直连电脑，避免扩展坞；串口默认速率为 `1500000`，但需以实际 USB-UART 芯片能力和日志为准。
@@ -18,7 +20,7 @@
 
 ## 2. eMMC / MaskROM 恢复
 
-1. 仅对含 eMMC 的 `02064/04064` SKU 使用 eMMC 镜像。
+1. 本板已确认有 eMMC，但正式 SKU/DDR 容量未定；先验证镜像适配、8 GB 容量约束和备份，再决定刷写。
 2. Windows 可使用官方 `DriverAssitant_v5.13.zip`、`RKDevTool_Release_v3.31.zip` 或 `SocToolKit_V2.2.zip`；Linux/macOS 使用官方 Wiki 链接的 `upgrade_tool`。
 3. 按官方 Getting Started 页面进入 Loader/MaskROM。若设备未出现，先断电、核对 BOOT/恢复键和 USB 线，再查看 `lsusb`/设备管理器；不要反复写入未知分区。
 4. 刷写前记录原有分区和序列号；完成后先只验证 boot/rootfs，再继续改系统配置。

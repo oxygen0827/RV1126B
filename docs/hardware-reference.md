@@ -1,6 +1,10 @@
 # Luckfox Aura RV1126B 硬件参考
 
-## SoC 与 SKU
+## 当前实物（2026-09-16 更新）
+
+以 [BOARD.md](hardware/BOARD.md) 为本板配置来源：RV1126B、8 GB eMMC 已确认；`ONLP4D256M32H` 内存初步推测 1 GB，尚无手册/启动日志确认。照片中的无线模组顶标为 `VS6621S80`，不能直接等同于原理图型号。正式 SKU 和 PCB 版本待核对。
+
+## 官网配置参考（2026-09-13 快照，不代表当前实物）
 
 | 项目 | 官方资料 | 备注 |
 | --- | --- | --- |
@@ -14,7 +18,7 @@
 
 ## 板载接口
 
-- 1 个千兆以太网口，原理图使用 RTL8211F-CG/MAE0621A-Q3C PHY/网络变压器组合。
+- 1 个千兆以太网口；原理图器件注释列 `MAE0621A-Q3C/RTL8211F-CG`，不据此认定两颗器件同时装配，实装 PHY 待核对。
 - 2 个 MIPI CSI 4-lane 摄像头接口；1 个 MIPI DSI 显示接口。
 - USB 3.0 OTG Type-C；CH334F USB 2.0 Hub 扩展 4 个 USB Host 口。
 - 2.4/5 GHz Wi-Fi 6、Bluetooth 5.4/BLE 模组，原理图标注 `SKI.WB800D80S.1`；SDIO 与 UART/PCM 信号需以设备树和实测为准。
