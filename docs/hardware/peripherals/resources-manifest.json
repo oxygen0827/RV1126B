@@ -1,0 +1,146 @@
+[
+  {
+    "path": "reference/peripherals/imx415-8mp-camera-a/aura-csi-zh.html",
+    "url": "https://wiki.luckfox.com/zh/Luckfox-Aura/Debian13/CSI",
+    "retrieved": "2026-09-16",
+    "bytes": 41494,
+    "sha256": "02d4148c088d26710eb3f8374c3c80415dce8a6205e17d41183eb3bbc3915039",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/imx415-8mp-camera-a/hardware/dimensions.jpg",
+    "url": "https://www.luckfox.cn/image/catalog/accBoard/IMX415-8MP-Camera-A/IMX415-8MP-Camera-A-size.jpg",
+    "retrieved": "2026-09-16",
+    "bytes": 113060,
+    "sha256": "05be4291355159237c79bae1a2e71a8335f98375e8798c55be8e992c30dcd32a",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/imx415-8mp-camera-a/hardware/product-details-7.jpg",
+    "url": "https://www.luckfox.cn/image/catalog/accBoard/IMX415-8MP-Camera-A/IMX415-8MP-Camera-A-details-7.jpg",
+    "retrieved": "2026-09-16",
+    "bytes": 107263,
+    "sha256": "26576725cbe407f0440545a6f37102c793bf698d5c1a3fff9cc297a27c09ae09",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/imx415-8mp-camera-a/hardware/product-details-9.jpg",
+    "url": "https://www.luckfox.cn/image/catalog/accBoard/IMX415-8MP-Camera-A/IMX415-8MP-Camera-A-details-9.jpg",
+    "retrieved": "2026-09-16",
+    "bytes": 104336,
+    "sha256": "9be0c3b953cadc955a232042f048575565efa3a8eda90caeafa4edbed6fb350b",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/imx415-8mp-camera-a/imx415-family-wiki-zh.html",
+    "url": "https://wiki.luckfox.com/zh/IMX415-Camera",
+    "retrieved": "2026-09-16",
+    "bytes": 27413,
+    "sha256": "9ccd453ae619300fbf09f160d732385473b73b9cdc7e68561f93a46aa25257c0",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/imx415-8mp-camera-a/product-zh.html",
+    "url": "https://www.luckfox.cn/IMX415-8MP-Camera-A",
+    "retrieved": "2026-09-16",
+    "bytes": 62939,
+    "sha256": "18053a30eaf89b283890fc338238847386bce04b84434adbba2eb7778ab0ec0b",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/imx415-8mp-camera-a/related-model-only/IMX415-98-IR-CUT-Camera-Specification.pdf",
+    "url": "https://wiki.luckfox.com/zh/assets/files/IMX415-98-IR-CUT-Camera-Specification-bd2c8ec98ac09e9df0b94cfbecf8cd9c.pdf",
+    "retrieved": "2026-09-16",
+    "bytes": 353696,
+    "sha256": "a0dc5613feef9429af8d544240890417938a586eb682958e940225eb0f91a876",
+    "note": "官网链接为 98 度 IR-CUT 模组规格书；不是已购 95.5 度 A 型的手册/原理图"
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/aura-dsi-zh.html",
+    "url": "https://wiki.luckfox.com/zh/Luckfox-Aura/DSI",
+    "retrieved": "2026-09-16",
+    "bytes": 54122,
+    "sha256": "3e526945757e1f935e3c269def203fe02bf3619ea4ac5cbf9b199f20795055cf",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/drivers/3inch5_DSI_E_Drives_Bullseye.zip",
+    "url": "https://files.waveshare.com/wiki/3.5inch_DSI_LCD_E/3inch5_DSI_E_Drives_Bullseye.zip",
+    "retrieved": "2026-09-16",
+    "bytes": 345060,
+    "sha256": "2ab6cd55b53bf76367659df8b7da839a751eceeccacdd5dc03e85f5b52cbc869",
+    "note": "官方 3.5 E 型 Raspberry Pi 驱动包；移植参考，不可直接部署 Aura"
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/drivers/Vc4-kms-dsi-generic.dtbo",
+    "url": "https://files.waveshare.com/wiki/common/Vc4-kms-dsi-generic.dtbo",
+    "retrieved": "2026-09-16",
+    "bytes": 3136,
+    "sha256": "e77e9db5988705d6a08e64a4943d07d5da36d502ff1bab4840af16671719cd64",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/drivers/Waveshare_35DSI.dtbo",
+    "url": "https://files.waveshare.com/wiki/common/Waveshare_35DSI.dtbo",
+    "retrieved": "2026-09-16",
+    "bytes": 4747,
+    "sha256": "ae09deaccceb80ced72519977fedc6d7becbd548a3043538c147ad40633b4611",
+    "note": "Raspberry Pi overlay，注意与 Wiki 新系统写法的大小写差异"
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/hardware/2D_DWG.zip",
+    "url": "https://files.waveshare.com/wiki/3.5inch_DSI_LCD_E/3.5_inch_DSI_LCD_E-2D_DWG.zip",
+    "retrieved": "2026-09-16",
+    "bytes": 68348,
+    "sha256": "1452778ed352eead7ff74a56daf187fbbe46253887caaf3769cdd1518736e089",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/hardware/3D_STP.zip",
+    "url": "https://files.waveshare.com/wiki/3.5inch_DSI_LCD_E/3.5_inch_DSI_LCD_E-3D_STP.zip",
+    "retrieved": "2026-09-16",
+    "bytes": 848693,
+    "sha256": "e479c3d5239c1796bcce1cefdfb1165c3c4d55ffd5246448b666f51dd695bf84",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/hardware/dimensions.jpg",
+    "url": "https://www.waveshare.com/img/devkit/LCD/3.5inch-DSI-LCD-E/3.5inch-DSI-LCD-E-details-size.jpg",
+    "retrieved": "2026-09-16",
+    "bytes": 218798,
+    "sha256": "8b8c2f9f52dcbbe6a9d8f7987565cc9c1a2b43803feb8982a72158f6da8df4f4",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/hardware/dimensions.pdf",
+    "url": "https://files.waveshare.com/wiki/3.5inch_DSI_LCD_E/3.5_inch_DSI_LCD_E-2D_PDF.pdf",
+    "retrieved": "2026-09-16",
+    "bytes": 30781,
+    "sha256": "03359edc1b353d6606b3782986db3e9bb1add1bb67edf5d78ee8cb16a54e2149",
+    "note": "2D 尺寸图，非电路原理图"
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/hardware/pi5-connection.jpg",
+    "url": "https://www.waveshare.com/img/devkit/LCD/3.5inch-DSI-LCD-E/3.5inch-DSI-LCD-E-details-3-1.jpg",
+    "retrieved": "2026-09-16",
+    "bytes": 218935,
+    "sha256": "729c4d4f89769199a6e0f1e4fdfca0087adbd56bb54361e4ac64af70a54fa2b5",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/product-en.html",
+    "url": "https://www.waveshare.com/3.5inch-dsi-lcd-e.htm",
+    "retrieved": "2026-09-16",
+    "bytes": 289407,
+    "sha256": "099b217306b43978c6b6d016494749e07c8e474be80b4c17041a3526028a8cd3",
+    "note": ""
+  },
+  {
+    "path": "reference/peripherals/waveshare-3.5inch-dsi-lcd-e/wiki-en.html",
+    "url": "https://www.waveshare.com/wiki/3.5inch_DSI_LCD_(E)",
+    "retrieved": "2026-09-16",
+    "bytes": 42287,
+    "sha256": "20347ff1abddfb7dc06efe3c912ef5d66ba91e01e84bc8057a48207884c2f131",
+    "note": ""
+  }
+]

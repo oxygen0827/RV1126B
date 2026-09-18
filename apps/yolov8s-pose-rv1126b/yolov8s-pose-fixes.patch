@@ -1,0 +1,77 @@
+diff -ru orig/yolov8s-pose-416-rv1126b/src/live_stream.go chiform-x/yolov8s-pose-416-rv1126b/src/live_stream.go
+--- orig/yolov8s-pose-416-rv1126b/src/live_stream.go	2026-09-15 21:56:31
++++ chiform-x/yolov8s-pose-416-rv1126b/src/live_stream.go	2026-09-18 17:16:50
+@@ -129,15 +129,13 @@
+ }
+ 
+ func boardJPEG(bgr []byte, w, h int) []byte {
+-	rgb := make([]byte, w*h*3)
++	img := image.NewRGBA(image.Rect(0, 0, w, h))
+ 	for i := 0; i < w*h; i++ {
+-		rgb[i*3] = bgr[i*3+2]
+-		rgb[i*3+1] = bgr[i*3+1]
+-		rgb[i*3+2] = bgr[i*3]
++		img.Pix[i*4+0] = bgr[i*3+2]
++		img.Pix[i*4+1] = bgr[i*3+1]
++		img.Pix[i*4+2] = bgr[i*3+0]
++		img.Pix[i*4+3] = 0xff
+ 	}
+-	img := image.NewNRGBA(image.Rect(0, 0, w, h))
+-	img.Pix = rgb
+-	img.Stride = w * 3
+ 	var buf bytes.Buffer
+ 	if err := jpeg.Encode(&buf, img, &jpeg.Options{Quality: 70}); err != nil {
+ 		return nil
+diff -ru orig/yolov8s-pose-416-rv1126b/src/main.go chiform-x/yolov8s-pose-416-rv1126b/src/main.go
+--- orig/yolov8s-pose-416-rv1126b/src/main.go	2026-09-16 07:22:17
++++ chiform-x/yolov8s-pose-416-rv1126b/src/main.go	2026-09-18 17:17:43
+@@ -22,6 +22,7 @@
+ 	"regexp"
+ 	"sort"
+ 	"strconv"
++	"sync"
+ 	"syscall"
+ 	"time"
+ 	"unsafe"
+@@ -1276,6 +1277,7 @@
+ 		httpServeFlag = flag.Arg(0)
+ 	}
+ 	if httpServeFlag != "" {
++		registerHTTPHandlers()
+ 		go http.ListenAndServe(":"+httpServeFlag, nil)
+ 	}
+ 
+@@ -1332,18 +1334,26 @@
+ 			os.Exit(1)
+ 		}
+ 	default:
+-		port := 18080
+-		if flag.NArg() > 0 {
+-			port, _ = strconv.Atoi(flag.Arg(0))
++		if httpServeFlag != "" {
++			select {}
+ 		}
++		port := 18080
++		registerHTTPHandlers()
++		fmt.Printf("serving :%d\n", port)
++		http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), nil)
++	}
++}
++
++var httpHandlersOnce sync.Once
++
++func registerHTTPHandlers() {
++	httpHandlersOnce.Do(func() {
+ 		http.HandleFunc("/stream", mjpegHandler)
+-	http.HandleFunc("/infer", inferHandler)
++		http.HandleFunc("/infer", inferHandler)
+ 		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+ 			w.Write([]byte(`{"status":"ok"}`))
+ 		})
+-		fmt.Printf("serving :%d\n", port)
+-		http.ListenAndServe(fmt.Sprintf("0.0.0.0:%d", port), nil)
+-	}
++	})
+ }
+ 
+ // mjpegHandler: 方案A 上位机显示端点 multipart/x-mixed-replace
