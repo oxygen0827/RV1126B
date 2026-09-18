@@ -120,10 +120,36 @@ Aura 侧依赖与冲突处理：`apt install dnsmasq`（NM shared 的 DHCP/DNS�
 **停用系统 dnsmasq 服务**（与 NM 的实例抢 53）；**停用 nginx**（占 80，且 S50nginx
 在 /oem 里，已改名为 .disabled）。
 
-## 9. 待办（LVGL 界面）
+## 9. LVGL 界面移植（2026-09-18，已能跑通显示）
 
-- LVGL 工程 `LF40-720720-ARK/luckfox_pico_lvgl_example` 需为 Aura 重建：
-  板端已有 gcc14/cmake，需 `apt install libdrm-dev`，显示改 640x480 DSI、触摸改 GT911(evdev)、
-  UI 布局从 720x720 适配到 640x480、路径改 `/root/yolov8s-pose/`、预览尺寸改 640x360
-- 配网页面手机实测
-- TTS（aplay 本地 WAV）验证
+工程源码（`ai-exercise-tutor` 的 `LF40-720720-ARK/luckfox_pico_lvgl_example`）已推到板子
+`/root/lvgl-app` 并**板端原生编译通过**（gcc14 + cmake + 系统 libdrm/libcjson），
+截图见 `lvgl/screenshot-fitness-ui-640x480.png`（FITNESS/SQUAT/START 20 SEC/WIFI SETUP 全显示）。
+
+复现步骤（`lvgl/` 下脚本）：
+
+```bash
+apt-get install -y libdrm-dev libcjson-dev
+# 1) 打包源码（注意 lib/lv_conf.h 和 lib/lv_drv_conf.h 在 lib 根目录，别漏）
+# 2) 板端解压到 /root/lvgl-app
+# 3) 给 lvgl 子目标补 lv_conf.h 包含路径：
+python3 patch2.py
+# 4) 接受 640x480 横向面板（原程序只认正方形，SCALE=1.0 渲染在左侧 480px）：
+python3 patch_lcd.py
+# 5) 触摸设备改 /dev/input/event1（GT911；event0 是电源键）：
+sed -i 's|/dev/input/event0|/dev/input/event1|' lib/lv_drv_conf.h
+# 6) 配置+构建：
+sh build_lvgl.sh        # 产物 build-native/luckfox_lvgl_demo
+sh run_lvgl.sh          # 跑 10 秒自测（会先 pkill rkipc 腾出显示）
+```
+
+**当前状态与待办**：
+
+- 显示：fbdev 通路可用（跑 LVGL 前需停 rkipc，或让 rkipc.ini 的 `enable_vo=0`）
+- 触摸：已指向 GT911(event1)，待点按实测
+- **布局适配**：UI 逻辑基数 480x480，目前按 SCALE=1.0 渲染在 640x480 面板左侧，
+  右侧 160px 是残留画面。需把 `custom/fitness_ui.c` 的布局扩到 640 宽（或整体居中+
+  背景铺满），预览尺寸从 640x480 改 640x360
+- 路径适配：`WIFI_SCRIPT`（改 `/root/yolov8s-pose/wifi_provision.sh`）、
+  `PREVIEW_FILE/PREVIEW_SRC_*`（640x360）、触发/状态文件路径（已在 Aura 后端口径一致）
+- 端到端联调：UI 点 START → 后端录制 → 保存/上传
