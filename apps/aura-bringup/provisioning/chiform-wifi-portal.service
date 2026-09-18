@@ -1,0 +1,14 @@
+[Unit]
+Description=CHIFORM Wi-Fi setup portal (CHIFORM-SETUP AP web page)
+After=NetworkManager.service
+Wants=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -u /root/yolov8s-pose/wifi_portal.py 192.168.4.1 80
+Restart=on-failure
+RestartSec=2
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

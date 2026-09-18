@@ -69,3 +69,61 @@ python3 dtb/patch_dts.py && dtc -I dts -O dtb -o /tmp/patched.dtb /tmp/patched_b
 python3 dtb/patch_boot.py   # 生成 boot-patched.img（需调整脚本内路径）
 # 3) 推送运行文件（见各 README）
 ```
+
+## 7. CHIFORM 健身应用移植（2026-09-18，RV1106 → RV1126B）
+
+将 RV1106 健身应用（`ai-exercise-tutor` 仓库）的后端功能移植到 RV1126B 的 yolosrv：
+
+- `app/src/`：RV1126B yolosrv + 从 RV1106 移植的模块
+  （`demo_rec.go` 录制/保存/上传、`fitness_record.go` 触发、`pose_session.go` 判定窗、
+  `pose_writer.go` 协议 7.2 序列写出、`tts*.go`、`fitness_compat.go` 兼容层）
+- `app/demo_upload.sh`：云上传脚本（Aura 适配：库路径修正、尺寸校验改按 meta、A380/A5 尺寸）
+- `app/yolosrv-rv1126b-fitness`：已构建的 aarch64 二进制
+
+**实板验证（全部通过）**：录制 5s → `video.h264`（640x360，MPP 硬编）→ 本地保存
+`/userdata/fitness/sessions/<id>/{video.mp4,pose.jsonl.gz,session_meta.json}` →
+云上传 `report_ready`（会话 ds_ae735c3ef982ce42130c6a0b）。
+
+运行方式：
+
+```bash
+/root/yolov8s-pose/yolosrv-new -model yolov8s_pose_416_w8a8.rknn -v4l2 /dev/video13 \
+  -vw 1280 -vh 720 -frames 100000 -conf 0.4 -smooth 0.5 -rotate180 \
+  -demo -session-file /tmp/fitness_session.trigger -session-seconds 20 \
+  -movement air_squat -correction-fps 25 -jsonl /tmp/fitness_live.jsonl 8080
+# 触发：touch /tmp/fitness_session.trigger（UI 写）
+# 保存：touch /tmp/fitness_save.trigger    上传：touch /tmp/fitness_upload.trigger
+```
+
+Aura 侧踩坑（已在脚本/代码里修掉）：
+
+1. `/oem/usr/lib` 的旧 freetype(2.6) 抢在系统库前 → ffmpeg 崩
+   （`FT_Set_Var_Design_Coordinates`）；demo_upload.sh 里把系统库路径前置。
+2. `probe_encoded_mp4` 硬编码 640x480 校验 → 改成按 meta 的宽高。
+3. `launchUpload` 未传 `APP_DIR/UPLOADER_ENV` → 上传脚本找不到 uploader.env。
+4. Aura 无 ffmpeg → `apt install ffmpeg`。
+
+## 8. 免烧录配网（Debian/NetworkManager 版）
+
+`provisioning/`：
+
+- `wifi_provision.sh`：`portal|sta|status|sync-time|stop`
+  - portal：nmcli 起开放热点 `CHIFORM-SETUP`（192.168.4.1，ipv4 shared）+ 网页；
+    部分驱动下 NM shared 不下发地址，脚本兜底 `ip addr add`。
+  - sta：清旧 profile → `nmcli dev wifi connect` → 失败自动恢复热点。
+  - sync-time：无 RTC 校时（UDP NTP + HTTP Date 兜底）。
+- `wifi_portal.py`：80 端口配网页（`/` 页面、`/api/scan`、`/api/status`、POST 保存并连接），
+  扫描走 nmcli。
+- `chiform-wifi-portal.service`：systemd 托管 portal（替代不稳定的 setsid 启动）。
+
+Aura 侧依赖与冲突处理：`apt install dnsmasq`（NM shared 的 DHCP/DNS），
+**停用系统 dnsmasq 服务**（与 NM 的实例抢 53）；**停用 nginx**（占 80，且 S50nginx
+在 /oem 里，已改名为 .disabled）。
+
+## 9. 待办（LVGL 界面）
+
+- LVGL 工程 `LF40-720720-ARK/luckfox_pico_lvgl_example` 需为 Aura 重建：
+  板端已有 gcc14/cmake，需 `apt install libdrm-dev`，显示改 640x480 DSI、触摸改 GT911(evdev)、
+  UI 布局从 720x720 适配到 640x480、路径改 `/root/yolov8s-pose/`、预览尺寸改 640x360
+- 配网页面手机实测
+- TTS（aplay 本地 WAV）验证
