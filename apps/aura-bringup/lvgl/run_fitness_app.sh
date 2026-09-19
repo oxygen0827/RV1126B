@@ -16,10 +16,17 @@ sleep 6
 
 # 2) yolosrv：摄像头推理 + 20s 录制/保存/上传后端（判定窗由 UI 的触发文件控制）
 cd "$APP_DIR"
+# TTS 密钥（可选）：/root/yolov8s-pose/tts.env 里 ZHIPU_API_KEY=...
+TTS_ARGS=""
+if [ -f "$APP_DIR/tts.env" ]; then
+  . "$APP_DIR/tts.env"
+  [ -n "${ZHIPU_API_KEY:-}" ] && TTS_ARGS="-tts-api-key $ZHIPU_API_KEY -tts-cache-dir /userdata/fitness/tts"
+fi
+mkdir -p /userdata/fitness/tts
 setsid ./yolosrv-new -model yolov8s_pose_416_w8a8.rknn -v4l2 /dev/video13 \
   -vw 1280 -vh 720 -frames 100000 -conf 0.4 -smooth 0.5 -rotate180 \
   -demo -session-file /tmp/fitness_session.trigger -session-seconds 20 \
-  -movement air_squat -correction-fps 25 -jsonl /tmp/fitness_live.jsonl 8080 \
+  -movement air_squat -correction-fps 25 -jsonl /tmp/fitness_live.jsonl $TTS_ARGS 8080 \
   > /tmp/fitness_app.log 2>&1 < /dev/null &
 sleep 5
 

@@ -155,4 +155,8 @@ sh run_lvgl.sh          # 跑 10 秒自测（会先 pkill rkipc 腾出显示）
 - 截图：`lvgl/screenshot-select-page.png`（选择页）、`lvgl/screenshot-session-page.png`
   （会话页：实时预览 + 倒计时 + 本地纠错状态，已验证 UI↔后端集成）
 - 一键启动：`/root/yolov8s-pose/run_fitness_app.sh`（rkipc 3A + yolosrv 后端 + LVGL UI）
-- **待办**：手指触摸实测（SQUAT/START/WIFI 按钮）；TTS 播报验证；配网页面手机实测
+- **TTS 已配置**：`/root/yolov8s-pose/tts.env`（`ZHIPU_API_KEY=...`，600 权限，不入库）→
+  `run_fitness_app.sh` 自动带 `-tts-api-key` + 缓存目录 `/userdata/fitness/tts`；
+  实测云端报告总评已合成并播放（报告"视频内容为天花板照明灯具…"→ 缓存 wav 376KB）。
+  无 key 时可用预录 WAV（`-tts-audio-dir`，ok/knee/hip/elbow/depth.wav）。
+- **待办**：手指触摸实测（SQUAT/START/WIFI 按钮）；配网页面手机实测
