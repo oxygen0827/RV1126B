@@ -168,4 +168,13 @@ sh run_lvgl.sh          # 跑 10 秒自测（会先 pkill rkipc 腾出显示）
     返回 302 → 手机连上热点后自动弹"登录网络"
   - NM shared 模式在 Aura 上不下发 IP：脚本等 NM activated 后再补 192.168.4.1/24 并复查
   - `sta` 失败会自动恢复热点（已实测：密码错误 → 回退热点 → 重输）
+- **配网链路修复记录（2026-09-19）**：
+  - UI 点击失败 `Permission denied`：adb push 后脚本丢失可执行位；UI 改用 `sh <script>` 调用，
+    同时启动脚本统一 `chmod +x`
+  - 切换被 systemd 杀：portal 的 POST 子进程随 portal 服务停止被清（改用 systemd-run 独立单元）
+  - 配网页秒开 + 扫描异步；`/generate_204` 等强制门户路径 302
+  - `portal_up` restart 竞态兜底；`do_sta` 重试 4 次
+  - `rkipc` 启动失败：systemd/非登录 shell 无 `LD_LIBRARY_PATH`，会加载系统 2021 旧 MPP
+    （缺 `mpp_enc_cfg_init_k`）→ 启动脚本显式 `LD_LIBRARY_PATH=/oem/usr/lib:/oem/lib`，
+    且 rkipc 用绝对路径 `/oem/usr/bin/rkipc`
 - **待办**：手指触摸实测（SQUAT/START/WIFI 按钮）

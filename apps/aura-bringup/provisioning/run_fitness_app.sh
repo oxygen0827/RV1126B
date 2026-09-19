@@ -4,6 +4,10 @@
 APP_DIR=/root/yolov8s-pose
 UI_DIR=/root/lvgl-app/build-native
 
+# rkipc 等 /oem 工具需要 /oem 库优先；systemd/非登录 shell 默认没有该变量，
+# 否则会加载系统里 2021 年的旧 MPP（缺 mpp_enc_cfg_init_k）导致 rkipc 崩溃。
+export LD_LIBRARY_PATH=/oem/usr/lib:/oem/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
+
 pkill -f luckfox_lvgl_demo 2>/dev/null
 pkill -f 'yolosrv-new' 2>/dev/null
 pkill rkipc 2>/dev/null
@@ -11,7 +15,7 @@ sleep 2
 
 # 1) rkipc：只提供 ISP 3A（关闭自己的显示层，把屏幕让给 LVGL）
 sed -i 's/^enable_vo                      = .*/enable_vo                      = 0/' /userdata/rkipc.ini
-setsid rkipc -a /oem/usr/share/iqfiles > /tmp/rkipc-app.log 2>&1 < /dev/null &
+setsid /oem/usr/bin/rkipc -a /oem/usr/share/iqfiles > /tmp/rkipc-app.log 2>&1 < /dev/null &
 sleep 6
 
 # 2) yolosrv：摄像头推理 + 20s 录制/保存/上传后端（判定窗由 UI 的触发文件控制）

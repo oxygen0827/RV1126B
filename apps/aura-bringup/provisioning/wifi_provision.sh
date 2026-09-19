@@ -70,12 +70,15 @@ ap_up() {
 }
 
 portal_up() {
-	# 先清理任何残留实例（手动/setsid 启动的会占 80）
-	pkill -f wifi_portal.py 2>/dev/null || true
-	sleep 1
-	# 优先 systemd 托管
+	# 优先 systemd 托管（restart 自带旧实例清理与端口释放）
 	if command -v systemctl >/dev/null 2>&1; then
-		systemctl restart chiform-wifi-portal >/dev/null 2>&1 && return 0
+		systemctl restart chiform-wifi-portal >/dev/null 2>&1 || true
+		sleep 2
+		systemctl is-active --quiet chiform-wifi-portal && return 0
+		pkill -f wifi_portal.py 2>/dev/null || true
+		sleep 1
+		systemctl start chiform-wifi-portal >/dev/null 2>&1 || true
+		sleep 1
 	fi
 	setsid python3 "$PORTAL_PY" "$AP_ADDR" "$PORTAL_PORT" >"$PORTAL_LOG" 2>&1 < /dev/null &
 	echo $! >"$PORTAL_PID"
