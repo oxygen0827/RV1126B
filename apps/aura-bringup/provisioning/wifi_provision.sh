@@ -116,8 +116,27 @@ do_sta() {
 	ap_down
 	# 旧 profile 可能残留（key-mgmt 缺失等）导致连接失败，先清掉重建
 	nmcli con delete "$WIFI_SSID" >/dev/null 2>&1 || true
-	if nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" ifname "$IFACE" >/dev/null 2>&1 ||
-		{ [ -z "${WIFI_PASSWORD:-}" ] && nmcli dev wifi connect "$WIFI_SSID" ifname "$IFACE" >/dev/null 2>&1; }; then
+	# 刚退出热点模式时驱动需要时间稳定，重试几次
+	sleep 2
+	ok=0
+	i=0
+	while [ "$i" -lt 4 ]; do
+		if [ -n "${WIFI_PASSWORD:-}" ]; then
+			out=$(nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" ifname "$IFACE" 2>&1)
+		else
+			out=$(nmcli dev wifi connect "$WIFI_SSID" ifname "$IFACE" 2>&1)
+		fi
+		rc=$?
+		echo "sta try $i rc=$rc: $out"
+		if [ "$rc" -eq 0 ]; then
+			ok=1
+			break
+		fi
+		nmcli con delete "$WIFI_SSID" >/dev/null 2>&1 || true
+		sleep 4
+		i=$((i + 1))
+	done
+	if [ "$ok" -eq 1 ]; then
 		sleep 2
 		if nmcli -t -f DEVICE,STATE dev | grep -q "^$IFACE:connected"; then
 			IP=$(ip -4 addr show "$IFACE" 2>/dev/null | awk '/inet /{print $2; exit}')
