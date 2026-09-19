@@ -23,6 +23,21 @@ setsid ./yolosrv-new -model yolov8s_pose_416_w8a8.rknn -v4l2 /dev/video13 \
   > /tmp/fitness_app.log 2>&1 < /dev/null &
 sleep 5
 
+# 2.5) Wi-Fi 状态文件：立即写一次 + 周期刷新（UI 右上角图标颜色）
+wifi_status_refresh() {
+  st=$(nmcli -t -f DEVICE,STATE,CONNECTION dev 2>/dev/null | awk -F: '$1=="wlan0"{print $2" "$3}')
+  ip=$(ip -4 addr show wlan0 2>/dev/null | awk '/inet /{print $2; exit}')
+  if nmcli -t -f NAME con show --active 2>/dev/null | grep -qx CHIFORM-SETUP; then
+    printf 'HOTSPOT READY: join CHIFORM-SETUP -> http://192.168.4.1\n' > /tmp/fitness_wifi_status.txt
+  elif [ -n "$ip" ]; then
+    printf 'CONNECTED: %s %s\n' "${st:-wlan0}" "$ip" > /tmp/fitness_wifi_status.txt
+  else
+    printf 'IDLE: %s\n' "${st:-wlan0}" > /tmp/fitness_wifi_status.txt
+  fi
+}
+wifi_status_refresh
+(while :; do wifi_status_refresh; sleep 5; done) >/dev/null 2>&1 &
+
 # 3) LVGL UI（fbdev，独占 DSI 屏幕）
 cd "$UI_DIR"
 setsid ./luckfox_lvgl_demo > /tmp/lvgl-ui.log 2>&1 < /dev/null &
