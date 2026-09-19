@@ -145,11 +145,14 @@ sh run_lvgl.sh          # 跑 10 秒自测（会先 pkill rkipc 腾出显示）
 
 **当前状态与待办**：
 
-- 显示：fbdev 通路可用（跑 LVGL 前需停 rkipc，或让 rkipc.ini 的 `enable_vo=0`）
-- 触摸：已指向 GT911(event1)，待点按实测
-- **布局适配**：UI 逻辑基数 480x480，目前按 SCALE=1.0 渲染在 640x480 面板左侧，
-  右侧 160px 是残留画面。需把 `custom/fitness_ui.c` 的布局扩到 640 宽（或整体居中+
-  背景铺满），预览尺寸从 640x480 改 640x360
-- 路径适配：`WIFI_SCRIPT`（改 `/root/yolov8s-pose/wifi_provision.sh`）、
-  `PREVIEW_FILE/PREVIEW_SRC_*`（640x360）、触发/状态文件路径（已在 Aura 后端口径一致）
-- 端到端联调：UI 点 START → 后端录制 → 保存/上传
+- 显示：fbdev 通路可用（跑 LVGL 前需停 rkipc 或 `enable_vo=0`）
+- **布局已适配 640×480**（`lvgl/patch_ui_aura.py`）：
+  - 显示尺寸改为面板实际尺寸（`PANEL_W/PANEL_H`），UI 按百分比/居中自动铺满
+  - 会话页纵向坐标重排（720 高设计 → 480 高：标题 16/副标 54/预览 78/倒计时 355/状态 420）
+  - 预览尺寸改 640×360 源 → 480×270 显示区（16:9，不再拉伸）
+  - 路径改 `/root/yolov8s-pose/`（upload 目录、配网脚本）
+  - 触摸指向 GT911（`/dev/input/event1`）
+- 截图：`lvgl/screenshot-select-page.png`（选择页）、`lvgl/screenshot-session-page.png`
+  （会话页：实时预览 + 倒计时 + 本地纠错状态，已验证 UI↔后端集成）
+- 一键启动：`/root/yolov8s-pose/run_fitness_app.sh`（rkipc 3A + yolosrv 后端 + LVGL UI）
+- **待办**：手指触摸实测（SQUAT/START/WIFI 按钮）；TTS 播报验证；配网页面手机实测
