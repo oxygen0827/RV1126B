@@ -73,7 +73,20 @@ def save_credentials(ssid, password):
 
 
 def switch_to_sta():
-    subprocess.run(["/bin/sh", SCRIPT, "sta"], timeout=120)
+    """在独立 systemd 单元里执行切换：do_sta 会 stop 本 portal 服务，
+    普通子进程会随服务 cgroup 一起被杀，必须隔离。"""
+    log = open("/tmp/fitness_wifi_switch.log", "a")
+    if os.path.exists("/usr/bin/systemd-run"):
+        try:
+            subprocess.Popen(
+                ["systemd-run", "--unit=chiform-wifi-switch", "--collect", "--quiet",
+                 "/bin/sh", SCRIPT, "sta"],
+                stdout=log, stderr=subprocess.STDOUT,
+            )
+            return
+        except Exception:
+            pass
+    subprocess.Popen(["/bin/sh", SCRIPT, "sta"], stdout=log, stderr=subprocess.STDOUT)
 
 
 def status_line():
@@ -118,24 +131,28 @@ class Handler(BaseHTTPRequestHandler):
             self.reply(json.dumps({"status": status_line()}, ensure_ascii=False),
                        content_type="application/json; charset=utf-8")
             return
-        options = "".join(
-            '<option value="%s">%s</option>' % (html.escape(n["ssid"], quote=True), html.escape(n["ssid"]))
-            for n in scan()
-        )
+        # 页面立即返回（探测请求/首访都要快）；扫描结果由前端异步拉取
         self.reply(
             """<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'>
 <title>CHIFORM Wi-Fi</title>
 <style>body{font:18px sans-serif;max-width:480px;margin:40px auto;padding:0 18px;color:#19324d}
 input,button{box-sizing:border-box;width:100%;padding:14px;margin:9px 0;font-size:18px}
 button{background:#1677ff;color:white;border:0;border-radius:8px}
-a{color:#1677ff}</style>
+a{color:#1677ff}.muted{color:#8a99a8;font-size:14px}</style>
 <h1>CHIFORM Wi-Fi</h1><p>选择扫描到的 2.4GHz Wi-Fi，也可以手动输入 SSID。</p>
 <form method=post><input name=ssid list=wifi-list required maxlength=32 placeholder='Wi-Fi 名称'>
-<datalist id=wifi-list>"""
-            + options
-            + """</datalist><input name=password type=password maxlength=64
+<datalist id=wifi-list></datalist>
+<input name=password type=password maxlength=64
 placeholder='密码（开放网络可留空）'><button type=submit>保存并连接</button></form>
-<p><a href='/'>重新扫描</a></p>"""
+<p class=muted id=scan-state>正在扫描…</p>
+<p><a href='/'>重新扫描</a></p>
+<script>
+fetch('/api/scan').then(function(r){return r.json()}).then(function(list){
+  var dl=document.getElementById('wifi-list');
+  list.forEach(function(n){var o=document.createElement('option');o.value=n.ssid;dl.appendChild(o);});
+  document.getElementById('scan-state').textContent = list.length? ('扫描到 '+list.length+' 个网络') : '未扫描到网络，可手动输入 SSID';
+}).catch(function(){document.getElementById('scan-state').textContent='扫描失败，可手动输入 SSID';});
+</script>"""
         )
 
     def do_POST(self):
