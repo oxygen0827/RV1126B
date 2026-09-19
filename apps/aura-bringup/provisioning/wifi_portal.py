@@ -97,8 +97,20 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    # 手机/系统的强制门户探测路径：统一 302 到配网页
+    CAPTIVE_PATHS = (
+        "/generate_204", "/gen_204", "/hotspot-detect.html",
+        "/connecttest.txt", "/ncsi.txt", "/redirect", "/canonical.html",
+    )
+
     def do_GET(self):
         path = urllib.parse.urlsplit(self.path).path
+        if path in self.CAPTIVE_PATHS:
+            self.send_response(302)
+            self.send_header("Location", "http://%s/" % AP_ADDR)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
         if path == "/api/scan":
             self.reply(json.dumps(scan(), ensure_ascii=False), content_type="application/json; charset=utf-8")
             return

@@ -40,24 +40,51 @@ ap_up() {
 		802-11-wireless.mode ap 802-11-wireless.band bg \
 		ipv4.method shared ipv4.addresses "$AP_ADDR/24" ipv6.method disabled >/dev/null
 	nmcli con modify "$AP_CON" remove 802-11-wireless-security >/dev/null 2>&1 || true
+	# 强制门户：所有域名解析到配网页，手机连上后自动弹"登录网络"
+	DNSMASQ_SHARED=/etc/NetworkManager/dnsmasq-shared.d
+	mkdir -p "$DNSMASQ_SHARED" 2>/dev/null || true
+	printf 'address=/#/%s\n' "$AP_ADDR" > "$DNSMASQ_SHARED/chiform-captive.conf" 2>/dev/null || true
 	nmcli con up "$AP_CON" >/dev/null
-	# 部分内核/驱动下 NM shared 模式不下发地址，这里兜底
-	if ! ip -4 addr show "$IFACE" 2>/dev/null | grep -q "inet $AP_ADDR"; then
+	# 部分内核/驱动下 NM shared 模式不下发地址（或下发后被后续阶段冲掉）：
+	# 等 NM 激活流程完全结束，再补地址并复查稳定性。
+	i=0
+	while [ "$i" -lt 25 ]; do
+		st=$(nmcli -t -f GENERAL.STATE con show "$AP_CON" 2>/dev/null | cut -d: -f2)
+		case "$st" in activated*) break ;; esac
+		sleep 1
+		i=$((i + 1))
+	done
+	sleep 8
+	i=0
+	while [ "$i" -lt 8 ]; do
+		if ip -4 addr show "$IFACE" 2>/dev/null | grep -q "inet $AP_ADDR/"; then
+			sleep 2
+			if ip -4 addr show "$IFACE" 2>/dev/null | grep -q "inet $AP_ADDR/"; then
+				break
+			fi
+		fi
 		ip addr add "$AP_ADDR/24" dev "$IFACE" 2>/dev/null || true
-	fi
+		sleep 2
+		i=$((i + 1))
+	done
 }
 
 portal_up() {
-	if [ -f "$PORTAL_PID" ] && kill -0 "$(cat "$PORTAL_PID" 2>/dev/null)" 2>/dev/null; then
-		return 0
-	fi
-	# 端口占用时先清理旧 portal
+	# 先清理任何残留实例（手动/setsid 启动的会占 80）
 	pkill -f wifi_portal.py 2>/dev/null || true
+	sleep 1
+	# 优先 systemd 托管
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl restart chiform-wifi-portal >/dev/null 2>&1 && return 0
+	fi
 	setsid python3 "$PORTAL_PY" "$AP_ADDR" "$PORTAL_PORT" >"$PORTAL_LOG" 2>&1 < /dev/null &
 	echo $! >"$PORTAL_PID"
 }
 
 portal_down() {
+	if command -v systemctl >/dev/null 2>&1; then
+		systemctl stop chiform-wifi-portal >/dev/null 2>&1 || true
+	fi
 	pkill -f wifi_portal.py 2>/dev/null || true
 	rm -f "$PORTAL_PID"
 }

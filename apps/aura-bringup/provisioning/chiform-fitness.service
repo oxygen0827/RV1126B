@@ -1,0 +1,15 @@
+[Unit]
+Description=CHIFORM fitness app (rkipc 3A + yolosrv backend + LVGL UI)
+After=network-online.target systemd-udev-settle.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh /root/yolov8s-pose/run_fitness_app.sh
+ExecStop=/bin/sh /root/yolov8s-pose/stop_fitness_app.sh
+TimeoutStartSec=120
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

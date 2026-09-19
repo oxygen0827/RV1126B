@@ -159,4 +159,13 @@ sh run_lvgl.sh          # 跑 10 秒自测（会先 pkill rkipc 腾出显示）
   `run_fitness_app.sh` 自动带 `-tts-api-key` + 缓存目录 `/userdata/fitness/tts`；
   实测云端报告总评已合成并播放（报告"视频内容为天花板照明灯具…"→ 缓存 wav 376KB）。
   无 key 时可用预录 WAV（`-tts-audio-dir`，ok/knee/hip/elbow/depth.wav）。
-- **待办**：手指触摸实测（SQUAT/START/WIFI 按钮）；配网页面手机实测
+- **开机自启**：`chiform-fitness.service`（oneshot，enabled）→ 冷启动后自动拉起
+  rkipc 3A + yolosrv + LVGL UI + Wi-Fi 状态循环（已实测重启生效）
+- **配网自动化（强制门户）**：
+  - 热点启动时写 `/etc/NetworkManager/dnsmasq-shared.d/chiform-captive.conf`
+    （`address=/#/192.168.4.1`，所有域名解析到板子）
+  - 配网页对 `/generate_204`、`/hotspot-detect.html`、`/ncsi.txt`、`/connecttest.txt`
+    返回 302 → 手机连上热点后自动弹"登录网络"
+  - NM shared 模式在 Aura 上不下发 IP：脚本等 NM activated 后再补 192.168.4.1/24 并复查
+  - `sta` 失败会自动恢复热点（已实测：密码错误 → 回退热点 → 重输）
+- **待办**：手指触摸实测（SQUAT/START/WIFI 按钮）
