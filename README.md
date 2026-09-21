@@ -22,7 +22,7 @@ RV1126B/
 ├── scripts/                      # 可重复执行的资料与开发脚本
 ├── reference/luckfox-aura/       # SDK、镜像、烧录工具、Wiki 快照（不入库）
 ├── upstream/                     # 官方 GitHub 源码仓库（不入库）
-├── apps/                         # 后续本地应用；当前为空
+├── apps/                         # Aura 健身应用、配网与模型部署
 └── chip-resource-rv1126b.html    # 官方资料检索报告
 ```
 
@@ -34,3 +34,8 @@ RV1126B/
 - 官方下载页列出 `luckfox-aura-docs`；本地快照实际包含 `Docs/` 和 `Hardware/`，README 规划的 `Code/` 尚未提供。示例见 RKNN Model Zoo 和 SDK。
 - 当前官方通用镜像为 2026-06-06 构建的 Buildroot/Debian 13 eMMC 与 MicroSD 版本；显示适配镜像另行归档。
 - SDK 文档明确要求 Ubuntu 22.04 x86_64；macOS 本地副本只做阅读和索引，不作为 SDK 编译环境。
+
+## 当前应用
+
+[Aura 健身应用](apps/aura-bringup/README.md)包含 LVGL 界面、Wi-Fi 配网及 YOLOv8s-pose 后端。
+最近修复与实板验收见[2026-09-19 记录](apps/aura-bringup/evidence/2026-09-19/README.md)。

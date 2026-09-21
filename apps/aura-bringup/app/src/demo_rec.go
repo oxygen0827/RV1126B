@@ -354,13 +354,13 @@ func (r *demoRec) recStart(vw, vh int, fps float64, live bool) error {
 }
 
 // writePoseFrame 开窗期每帧调用（decode 协程）：写协议 7.2 序列行。
-func (r *demoRec) writePoseFrame(frameIdx int, keep []detection, scale float32, padX, padY int) {
+func (r *demoRec) writePoseFrame(frameIdx int, keep []detection, scale float32, padX, padY, srcW, srcH int) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if !r.active || r.poseW == nil {
 		return
 	}
-	r.poseW.writeFrame(frameIdx, keep, scale, padX, padY)
+	r.poseW.writeFrame(frameIdx, keep, scale, padX, padY, srcW, srcH)
 }
 
 // snapFrame DRM show 协程调用：每 demoSnapEvery 帧把 back buffer 图像区

@@ -1,0 +1,18 @@
+[Unit]
+Description=CHIFORM ISP automatic exposure and white balance
+After=systemd-udev-settle.service
+
+[Service]
+Type=simple
+Environment=LD_LIBRARY_PATH=/oem/usr/lib:/oem/lib
+ExecStartPre=/usr/bin/truncate -s 0 /tmp/chiform-3a.log
+ExecStart=/usr/bin/stdbuf -oL -eL /oem/usr/bin/rkaiq_3A_server
+ExecStartPost=/bin/sh -c 'i=0; while [ "$i" -lt 50 ]; do grep -q "wait stream start event" /tmp/chiform-3a.log && exit 0; sleep 0.1; i=$((i+1)); done; exit 1'
+StandardOutput=append:/tmp/chiform-3a.log
+StandardError=append:/tmp/chiform-3a.log
+Restart=on-failure
+RestartSec=1
+TimeoutStartSec=10
+
+[Install]
+WantedBy=multi-user.target

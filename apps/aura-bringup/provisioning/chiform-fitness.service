@@ -1,7 +1,7 @@
 [Unit]
-Description=CHIFORM fitness app (rkipc 3A + yolosrv backend + LVGL UI)
-After=network-online.target systemd-udev-settle.service
-Wants=network-online.target
+Description=CHIFORM fitness app (ISP 3A + yolosrv backend + LVGL UI)
+After=network-online.target systemd-udev-settle.service initd-seq.service
+Wants=network-online.target initd-seq.service
 
 [Service]
 Type=oneshot

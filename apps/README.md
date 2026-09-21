@@ -1,5 +1,10 @@
 # 本地应用
 
-当前为空。后续应用、服务和验证程序放在这里；上游示例保留在 `upstream/`，不要直接在上游目录中改产品代码。
+- [aura-bringup](aura-bringup/README.md)：当前健身应用。`app/src` 是 Go 后端源码，
+  `provisioning` 是配网和启动服务，`lvgl` 保存界面移植脚本。
+- [yolov8s-pose-rv1126b](yolov8s-pose-rv1126b/README.md)：早期模型交付包工作副本，
+  用作历史基线，不是当前健身应用部署入口。
 
-建议按可独立构建/部署的功能建子目录，例如 `apps/hello-world/`、`apps/camera-smoke/` 或 `apps/rknn-demo/`，并为每个应用记录目标系统、SDK 配置、板端部署命令和验收日志。
+当前修复状态、部署方法和现场待验收项见
+[2026-09-19 验收记录](aura-bringup/evidence/2026-09-19/README.md)。
+上游资料继续保留在 `upstream/`，不直接修改。

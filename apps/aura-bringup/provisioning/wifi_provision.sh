@@ -11,15 +11,24 @@ IFACE=${WIFI_IFACE:-wlan0}
 AP_SSID=${WIFI_AP_SSID:-CHIFORM-SETUP}
 AP_ADDR=${WIFI_AP_ADDR:-192.168.4.1}
 AP_CON=${AP_SSID}
-STA_CON=${WIFI_STA_CON:-chiform-sta}
+# Reserved benchmarking address, used only behind the hotspot DNAT. Avoid
+# RFC1918 answers which some Android versions treat as no-internet DNS.
+export WIFI_PROBE_ADDR=${WIFI_PROBE_ADDR:-198.18.0.1}
 STATUS=${WIFI_STATUS_FILE:-/tmp/fitness_wifi_status.txt}
 PORTAL_PORT=${WIFI_PORTAL_PORT:-80}
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-PORTAL_PY=$SCRIPT_DIR/wifi_portal.py
-PORTAL_LOG=/tmp/fitness_wifi_portal.log
-PORTAL_PID=/tmp/fitness_wifi_portal.pid
-SITE=${WIFI_SITE:-/root/yolov8s-pose}
-LAST_CRED=/userdata/fitness/wifi_last.conf
+PORTAL_PID=${WIFI_PORTAL_PID:-/tmp/fitness_wifi_portal.pid}
+LAST_CRED=${WIFI_CREDENTIAL_FILE:-/userdata/fitness/wifi_last.conf}
+LOCK=${WIFI_LOCK_FILE:-/run/chiform-wifi.lock}
+export LC_ALL=C
+
+# Serialize button presses / POST switches; status must not overwrite transitions.
+case "${1:-status}" in
+ portal|sta|stop)
+  exec 9>"$LOCK"
+  flock -w 3 9 || { cat "$STATUS" 2>/dev/null || true; exit 0; }
+  ;;
+esac
 
 log_status() { printf '%s\n' "$*" >"$STATUS"; echo "$*"; }
 
@@ -28,60 +37,33 @@ ensure_nm() {
 }
 
 ap_down() {
+	python3 "$SCRIPT_DIR/wifi_redirect.py" stop || return 1
 	nmcli con down "$AP_CON" >/dev/null 2>&1 || true
 }
 
 ap_up() {
-	# 无密码开放热点；NM shared 模式自带 DHCP/DNS（依赖 dnsmasq）
-	# 重建为开放热点（nmcli 的 key-mgmt none 会被当成 WEP，必须移除安全段）
-	nmcli con delete "$AP_CON" >/dev/null 2>&1 || true
-	nmcli con add type wifi ifname "$IFACE" con-name "$AP_CON" autoconnect no ssid "$AP_SSID" >/dev/null
-	nmcli con modify "$AP_CON" \
-		802-11-wireless.mode ap 802-11-wireless.band bg \
-		ipv4.method shared ipv4.addresses "$AP_ADDR/24" ipv6.method disabled >/dev/null
-	nmcli con modify "$AP_CON" remove 802-11-wireless-security >/dev/null 2>&1 || true
-	# 强制门户：所有域名解析到配网页，手机连上后自动弹"登录网络"
-	DNSMASQ_SHARED=/etc/NetworkManager/dnsmasq-shared.d
-	mkdir -p "$DNSMASQ_SHARED" 2>/dev/null || true
-	printf 'address=/#/%s\n' "$AP_ADDR" > "$DNSMASQ_SHARED/chiform-captive.conf" 2>/dev/null || true
-	nmcli con up "$AP_CON" >/dev/null
-	# 部分内核/驱动下 NM shared 模式不下发地址（或下发后被后续阶段冲掉）：
-	# 等 NM 激活流程完全结束，再补地址并复查稳定性。
-	i=0
-	while [ "$i" -lt 25 ]; do
-		st=$(nmcli -t -f GENERAL.STATE con show "$AP_CON" 2>/dev/null | cut -d: -f2)
-		case "$st" in activated*) break ;; esac
-		sleep 1
-		i=$((i + 1))
-	done
-	sleep 8
-	i=0
-	while [ "$i" -lt 8 ]; do
-		if ip -4 addr show "$IFACE" 2>/dev/null | grep -q "inet $AP_ADDR/"; then
-			sleep 2
-			if ip -4 addr show "$IFACE" 2>/dev/null | grep -q "inet $AP_ADDR/"; then
-				break
-			fi
-		fi
-		ip addr add "$AP_ADDR/24" dev "$IFACE" 2>/dev/null || true
-		sleep 2
-		i=$((i + 1))
-	done
+ # Reuse the profile: repeated presses must not drop an already healthy AP.
+ DNSMASQ_SHARED=${WIFI_DNSMASQ_DIR:-/etc/NetworkManager/dnsmasq-shared.d}
+ mkdir -p "$DNSMASQ_SHARED"
+ printf 'address=/#/%s\nlocal=/#/\nno-resolv\ndhcp-option=3,%s\ndhcp-option=6,%s\n' "$WIFI_PROBE_ADDR" "$AP_ADDR" "$AP_ADDR" > "$DNSMASQ_SHARED/chiform-captive.conf"
+ if ! nmcli con show "$AP_CON" >/dev/null 2>&1; then
+  nmcli con add type wifi ifname "$IFACE" con-name "$AP_CON" autoconnect no ssid "$AP_SSID" >/dev/null || return 1
+ fi
+ nmcli con modify "$AP_CON" \
+  connection.autoconnect no \
+  802-11-wireless.mode ap 802-11-wireless.band bg 802-11-wireless.channel 6 \
+  ipv4.method shared ipv4.addresses "$AP_ADDR/24" ipv6.method disabled >/dev/null || return 1
+ nmcli con modify "$AP_CON" remove 802-11-wireless-security >/dev/null 2>&1 || true
+ nmcli --wait 12 con up "$AP_CON" ifname "$IFACE" >/dev/null || return 1
+ python3 "$SCRIPT_DIR/wifi_redirect.py" start "$IFACE" "$AP_ADDR" "$PORTAL_PORT" || return 1
+ # No fixed sleeps or IP repairs: NM is the sole owner of this interface.
+ python3 "$SCRIPT_DIR/wifi_check.py" "$AP_ADDR" "$PORTAL_PORT" || return 1
 }
 
 portal_up() {
-	# 优先 systemd 托管（restart 自带旧实例清理与端口释放）
-	if command -v systemctl >/dev/null 2>&1; then
-		systemctl restart chiform-wifi-portal >/dev/null 2>&1 || true
-		sleep 2
-		systemctl is-active --quiet chiform-wifi-portal && return 0
-		pkill -f wifi_portal.py 2>/dev/null || true
-		sleep 1
-		systemctl start chiform-wifi-portal >/dev/null 2>&1 || true
-		sleep 1
-	fi
-	setsid python3 "$PORTAL_PY" "$AP_ADDR" "$PORTAL_PORT" >"$PORTAL_LOG" 2>&1 < /dev/null &
-	echo $! >"$PORTAL_PID"
+ # Start HTTP before Wi-Fi association/DHCP so the very first OS probe succeeds.
+ systemctl start chiform-wifi-portal || return 1
+ python3 "$SCRIPT_DIR/wifi_check.py" 127.0.0.1 "$PORTAL_PORT" --http-only
 }
 
 portal_down() {
@@ -93,20 +75,32 @@ portal_down() {
 }
 
 do_portal() {
-	ensure_nm
-	log_status "STARTING: hotspot $AP_SSID"
-	# 断开当前 STA，避免 AP+STA 冲突
-	for c in $(nmcli -t -f NAME,DEVICE con show --active 2>/dev/null | awk -F: -v d="$IFACE" '$2==d{print $1}'); do
-		nmcli con down "$c" >/dev/null 2>&1 || true
-	done
-	ap_down
-	if ! ap_up; then
-		log_status "FAILED: cannot start hotspot"
-		exit 1
-	fi
-	sleep 2
-	portal_up
-	log_status "HOTSPOT READY: join $AP_SSID -> http://$AP_ADDR"
+ ensure_nm
+ # Apply to reused/legacy profiles as well as newly created ones.
+ if nmcli con show "$AP_CON" >/dev/null 2>&1; then
+  nmcli con modify "$AP_CON" connection.autoconnect no || return 1
+ fi
+ log_status "STARTING: hotspot $AP_SSID"
+ if ! portal_up; then
+  systemctl stop chiform-wifi-portal >/dev/null 2>&1 || true
+  log_status "FAILED: cannot start setup page"
+  return 1
+ fi
+ # Install before checking an existing AP too (upgrade without disconnect).
+ python3 "$SCRIPT_DIR/wifi_redirect.py" start "$IFACE" "$AP_ADDR" "$PORTAL_PORT" || {
+  log_status "FAILED: hotspot redirect unavailable"; return 1;
+ }
+ if nmcli -t -f NAME con show --active | grep -Fxq "$AP_CON" &&
+    python3 "$SCRIPT_DIR/wifi_check.py" "$AP_ADDR" "$PORTAL_PORT" --once; then
+  log_status "HOTSPOT READY: join $AP_SSID -> http://$AP_ADDR"
+  return 0
+ fi
+ # NM activation handles the STA -> AP transition without a second disconnect.
+ if ! ap_up; then
+  log_status "FAILED: hotspot DNS/DHCP/page not ready"
+  return 1
+ fi
+ log_status "HOTSPOT READY: join $AP_SSID -> http://$AP_ADDR"
 }
 
 do_sta() {
@@ -123,14 +117,13 @@ do_sta() {
 	sleep 2
 	ok=0
 	i=0
-	while [ "$i" -lt 4 ]; do
+	while [ "$i" -lt 2 ]; do
 		if [ -n "${WIFI_PASSWORD:-}" ]; then
-			out=$(nmcli dev wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" ifname "$IFACE" 2>&1)
+			if out=$(nmcli --wait 15 dev wifi connect "$WIFI_SSID" password "$WIFI_PASSWORD" ifname "$IFACE" 2>&1); then rc=0; else rc=$?; fi
 		else
-			out=$(nmcli dev wifi connect "$WIFI_SSID" ifname "$IFACE" 2>&1)
+			if out=$(nmcli --wait 15 dev wifi connect "$WIFI_SSID" ifname "$IFACE" 2>&1); then rc=0; else rc=$?; fi
 		fi
-		rc=$?
-		echo "sta try $i rc=$rc: $out"
+		echo "sta try $i rc=$rc"
 		if [ "$rc" -eq 0 ]; then
 			ok=1
 			break
@@ -154,13 +147,23 @@ do_sta() {
 }
 
 do_status() {
+	# A transition holds fd 9; keep its STARTING/CONNECTING message visible.
+	exec 8>"$LOCK"
+	if ! flock -n 8; then cat "$STATUS" 2>/dev/null || true; return; fi
 	line=$(nmcli -t -f DEVICE,STATE,CONNECTION dev 2>/dev/null | awk -F: -v d="$IFACE" '$1==d{print $2" "$3}')
 	IP=$(ip -4 addr show "$IFACE" 2>/dev/null | awk '/inet /{print $2; exit}')
-	if nmcli -t -f NAME con show --active 2>/dev/null | grep -qx "$AP_CON"; then
+	if nmcli -t -f NAME con show --active 2>/dev/null | grep -Fxq "$AP_CON"; then
+		if ! python3 "$SCRIPT_DIR/wifi_check.py" "$AP_ADDR" "$PORTAL_PORT" --once; then
+			log_status "FAILED: hotspot services unavailable"; return
+		fi
 		log_status "HOTSPOT READY: join $AP_SSID -> http://$AP_ADDR"
 	elif [ -n "$IP" ]; then
 		log_status "CONNECTED: ${line:-$IFACE} $IP"
 	else
+		# Keep the setup failure visible until retry/stop or an actual connection.
+		if [ -r "$STATUS" ] && grep -q '^FAILED:' "$STATUS"; then
+			cat "$STATUS"; return
+		fi
 		log_status "IDLE: ${line:-$IFACE}"
 	fi
 }

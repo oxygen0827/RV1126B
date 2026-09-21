@@ -1,0 +1,34 @@
+test_failed_sta_restores_hotspot_under_set_e (test_wifi.PortalTests.test_failed_sta_restores_hotspot_under_set_e) ... ok
+test_os_probes_and_unknown_hosts_redirect_without_scan (test_wifi.PortalTests.test_os_probes_and_unknown_hosts_redirect_without_scan) ... {"event": "captive_probe", "host": "captive.apple.com", "path": "/hotspot-detect.html"}
+{"event": "captive_probe", "host": "captive.apple.com", "path": "/hotspot-detect.html"}
+{"event": "captive_probe", "host": "connectivitycheck.gstatic.com", "path": "/generate_204"}
+{"event": "captive_probe", "host": "connectivitycheck.gstatic.com", "path": "/generate_204"}
+{"event": "captive_probe", "host": "www.msftconnecttest.com", "path": "/connecttest.txt"}
+{"event": "captive_probe", "host": "www.msftconnecttest.com", "path": "/connecttest.txt"}
+{"event": "captive_probe", "host": "connect.rom.miui.com", "path": "/unknown-probe"}
+{"event": "captive_probe", "host": "connect.rom.miui.com", "path": "/unknown-probe"}
+ok
+test_scan_preserves_escaped_ssid_without_disrupting_ap (test_wifi.PortalTests.test_scan_preserves_escaped_ssid_without_disrupting_ap) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.837s
+
+OK
+test_cached_http_and_external_dns_reach_portal (test_captive_network.CaptiveNetworkTest.test_cached_http_and_external_dns_reach_portal) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 2.872s
+
+OK
+active
+active
+active
+rc 0
+table ip chiform_portal {
+	chain prerouting {
+		type nat hook prerouting priority dstnat; policy accept;
+		iifname "wlan0" udp dport 53 counter packets 0 bytes 0 dnat to 192.168.4.1:53
+		iifname "wlan0" tcp dport 53 counter packets 0 bytes 0 dnat to 192.168.4.1:53
+		iifname "wlan0" tcp dport 80 counter packets 0 bytes 0 dnat to 192.168.4.1:80
+	}
+}

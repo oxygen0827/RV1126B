@@ -13,11 +13,12 @@ import os
 import subprocess
 import sys
 import threading
+import time
 import urllib.parse
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-AP_ADDR = sys.argv[1] if len(sys.argv) > 1 else "192.168.4.1"
-PORT = int(sys.argv[2]) if len(sys.argv) > 2 else 80
+AP_ADDR = "192.168.4.1"
+PORT = 80
 IFACE = os.environ.get("WIFI_IFACE", "wlan0")
 SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "wifi_provision.sh")
 CRED = "/userdata/fitness/wifi_last.conf"
@@ -33,12 +34,23 @@ def sh(*args, timeout=20):
 
 def scan():
     """nmcli 扫描；AP 模式下可能失败，失败返回空表（页面仍可手输）。"""
-    out = sh("nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list", "--rescan", "yes", timeout=25)
-    if not out.strip():
-        out = sh("nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list", timeout=10)
+    out = sh("nmcli", "-t", "-f", "SSID,SIGNAL,SECURITY", "dev", "wifi", "list", "ifname", IFACE, "--rescan", "no", timeout=3)
     seen, nets = set(), []
     for line in out.splitlines():
-        parts = line.split(":")
+        parts = []
+        part, escaped = "", False
+        for char in line:
+            if escaped:
+                part += char
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == ":":
+                parts.append(part)
+                part = ""
+            else:
+                part += char
+        parts.append(part)
         if len(parts) < 3 or not parts[0]:
             continue
         ssid = parts[0].replace("\\:", ":")
@@ -60,7 +72,7 @@ def _sq(s):
 
 
 def save_credentials(ssid, password):
-    if not ssid or len(ssid) > 32 or "\n" in ssid or "\x00" in ssid:
+    if not ssid or len(ssid.encode("utf-8")) > 32 or "\n" in ssid or "\x00" in ssid:
         raise ValueError("SSID 无效")
     if len(password) > 64 or "\n" in password or "\x00" in password:
         raise ValueError("密码无效")
@@ -75,22 +87,22 @@ def save_credentials(ssid, password):
 def switch_to_sta():
     """在独立 systemd 单元里执行切换：do_sta 会 stop 本 portal 服务，
     普通子进程会随服务 cgroup 一起被杀，必须隔离。"""
-    log = open("/tmp/fitness_wifi_switch.log", "a")
-    if os.path.exists("/usr/bin/systemd-run"):
-        try:
-            subprocess.Popen(
+    time.sleep(0.5)  # Let the response reach the phone before association drops.
+    try:
+        with open("/tmp/fitness_wifi_switch.log", "a") as log:
+            subprocess.run(
                 ["systemd-run", "--unit=chiform-wifi-switch", "--collect", "--quiet",
                  "/bin/sh", SCRIPT, "sta"],
-                stdout=log, stderr=subprocess.STDOUT,
+                stdout=log, stderr=subprocess.STDOUT, check=True, timeout=5,
             )
-            return
-        except Exception:
-            pass
-    subprocess.Popen(["/bin/sh", SCRIPT, "sta"], stdout=log, stderr=subprocess.STDOUT)
+    except (OSError, subprocess.SubprocessError):
+        with open("/tmp/fitness_wifi_status.txt", "w") as status:
+            status.write("FAILED: cannot schedule Wi-Fi connection; retry\n")
+        SWITCH_LOCK.release()
 
 
 def status_line():
-    sh(SCRIPT, "status", timeout=15)
+    sh("/bin/sh", SCRIPT, "status", timeout=3)
     try:
         with open("/tmp/fitness_wifi_status.txt", encoding="utf-8") as f:
             return f.readline().strip()
@@ -102,25 +114,51 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
+    def log_portal_request(self, event, path):
+        # Distinguish actual OS probes from manual visits. Never log query
+        # strings, POST bodies, cookies, SSIDs or Wi-Fi passwords.
+        print(json.dumps({"event": event, "host": self.headers.get("Host", "")[:200],
+                          "path": path[:200], "method": self.command,
+                          "agent": self.headers.get("User-Agent", "")[:256]}), flush=True)
+
     def reply(self, body, code=200, content_type="text/html; charset=utf-8"):
         data = body.encode("utf-8") if isinstance(body, str) else body
         self.send_response(code)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
-        self.wfile.write(data)
+        if self.command != "HEAD":
+            self.wfile.write(data)
+        self.wfile.flush()
 
-    # 手机/系统的强制门户探测路径：统一 302 到配网页
+    # Match the RV1106 portal's non-success HTML response for Apple's CNA.
+    APPLE_PATHS = ("/hotspot-detect.html", "/library/test/success.html")
+    # Other OS probes use a stable numeric redirect.
     CAPTIVE_PATHS = (
         "/generate_204", "/gen_204", "/hotspot-detect.html",
         "/connecttest.txt", "/ncsi.txt", "/redirect", "/canonical.html",
     )
 
+    def do_HEAD(self):
+        self.do_GET()
+
     def do_GET(self):
         path = urllib.parse.urlsplit(self.path).path
-        if path in self.CAPTIVE_PATHS:
+        if path == "/healthz":
+            self.reply("CHIFORM portal ready", content_type="text/plain")
+            return
+        if path in self.APPLE_PATHS:
+            self.log_portal_request("apple_probe_html", path)
+            self.setup_page()
+            return
+        # Redirect every foreign host/probe to a stable numeric form action.
+        host = self.headers.get("Host", "").split(":")[0].lower()
+        if path in self.CAPTIVE_PATHS or (host and host not in (AP_ADDR, "127.0.0.1", "localhost")):
+            self.log_portal_request("captive_probe", path)
             self.send_response(302)
             self.send_header("Location", "http://%s/" % AP_ADDR)
+            self.send_header("Cache-Control", "no-store")
             self.send_header("Content-Length", "0")
             self.end_headers()
             return
@@ -132,6 +170,13 @@ class Handler(BaseHTTPRequestHandler):
                        content_type="application/json; charset=utf-8")
             return
         # 页面立即返回（探测请求/首访都要快）；扫描结果由前端异步拉取
+        self.log_portal_request("portal_page", path)
+        self.setup_page()
+
+    def setup_page(self):
+        # A CNA may render this under captive.apple.com rather than our IP.
+        # Form submission always targets the board, even without JavaScript.
+        portal_url = "http://%s/" % AP_ADDR
         self.reply(
             """<!doctype html><meta name=viewport content='width=device-width,initial-scale=1'>
 <title>CHIFORM Wi-Fi</title>
@@ -140,19 +185,23 @@ input,button{box-sizing:border-box;width:100%;padding:14px;margin:9px 0;font-siz
 button{background:#1677ff;color:white;border:0;border-radius:8px}
 a{color:#1677ff}.muted{color:#8a99a8;font-size:14px}</style>
 <h1>CHIFORM Wi-Fi</h1><p>选择扫描到的 2.4GHz Wi-Fi，也可以手动输入 SSID。</p>
-<form method=post><input name=ssid list=wifi-list required maxlength=32 placeholder='Wi-Fi 名称'>
+<form method=post action="__PORTAL_URL__"><input name=ssid list=wifi-list required maxlength=32 placeholder='Wi-Fi 名称'>
 <datalist id=wifi-list></datalist>
 <input name=password type=password maxlength=64
 placeholder='密码（开放网络可留空）'><button type=submit>保存并连接</button></form>
 <p class=muted id=scan-state>正在扫描…</p>
-<p><a href='/'>重新扫描</a></p>
+<p><a href='__PORTAL_URL__'>重新扫描</a></p>
 <script>
+if (location.origin !== new URL('__PORTAL_URL__').origin) {
+  location.replace('__PORTAL_URL__');
+} else {
 fetch('/api/scan').then(function(r){return r.json()}).then(function(list){
   var dl=document.getElementById('wifi-list');
   list.forEach(function(n){var o=document.createElement('option');o.value=n.ssid;dl.appendChild(o);});
   document.getElementById('scan-state').textContent = list.length? ('扫描到 '+list.length+' 个网络') : '未扫描到网络，可手动输入 SSID';
 }).catch(function(){document.getElementById('scan-state').textContent='扫描失败，可手动输入 SSID';});
-</script>"""
+}
+</script>""".replace("__PORTAL_URL__", html.escape(portal_url, quote=True))
         )
 
     def do_POST(self):
@@ -180,9 +229,10 @@ fetch('/api/scan').then(function(r){return r.json()}).then(function(list){
             self.reply("<h1>已保存</h1><p>正在连接 %s，请等待约 15 秒。</p>" % html.escape(ssid))
         finally:
             threading.Thread(target=switch_to_sta, daemon=True).start()
-            SWITCH_LOCK.release()
 
 
 if __name__ == "__main__":
+    AP_ADDR = sys.argv[1] if len(sys.argv) > 1 else AP_ADDR
+    PORT = int(sys.argv[2]) if len(sys.argv) > 2 else PORT
     print("wifi portal listening on %s:%d" % (AP_ADDR, PORT))
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()

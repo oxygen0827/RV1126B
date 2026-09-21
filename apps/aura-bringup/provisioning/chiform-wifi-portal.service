@@ -1,14 +1,15 @@
 [Unit]
 Description=CHIFORM Wi-Fi setup portal (CHIFORM-SETUP AP web page)
-After=NetworkManager.service
+After=NetworkManager.service initd-seq.service
 Wants=NetworkManager.service
 
 [Service]
 Type=simple
+ExecStartPre=/bin/sh /root/yolov8s-pose/prepare_wifi_portal.sh
 ExecStart=/usr/bin/python3 -u /root/yolov8s-pose/wifi_portal.py 192.168.4.1 80
 Restart=on-failure
 RestartSec=2
 Nice=5
 
-[Install]
-WantedBy=multi-user.target
+# Deliberately on-demand: wifi_provision.sh starts/stops this unit.
+# Do not enable it at boot on the user's normal Wi-Fi network.

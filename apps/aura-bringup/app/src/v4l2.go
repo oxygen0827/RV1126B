@@ -1,6 +1,8 @@
 // v4l2.go: V4L2 摄像头帧源（ARM32 多平面，EXPBUF 零拷贝，已实测跑通）
 // 链路：sensor -> rkcif/rkisp -> V4L2 MMAP buffer --EXPBUF--> dma-buf fd
-//       --RGA(NV12->RGB letterbox)--> NPU 输入 dma-buf，全程零拷贝
+//
+//	--RGA(NV12->RGB letterbox)--> NPU 输入 dma-buf，全程零拷贝
+//
 // EXPBUF 不可用时回退 mmap + memcpy 到 RGA 源 buffer（仍只有一拷）
 package main
 
@@ -34,31 +36,30 @@ const (
 
 // v4l2_buffer 字段偏移（arm32，多平面，32-bit time_t，总长 68）
 const (
-	vbIndex   = 0
-	vbType    = 4
+	vbIndex     = 0
+	vbType      = 4
 	vbBytesused = 8
-	vbFlags   = 12
-	vbField   = 16
-	vbTimeval = 20
-	vbSequence = 44
-	vbMemory  = 60
-	vbMPlanes = 64
-	vbLength  = 72
-	vbSize    = 96 // 88 实测，留余量
+	vbFlags     = 12
+	vbField     = 16
+	vbTimeval   = 20
+	vbSequence  = 44
+	vbMemory    = 60
+	vbMPlanes   = 64
+	vbLength    = 72
+	vbSize      = 96 // 88 实测，留余量
 )
 
 type v4l2Plane struct {
-	bytesused uint32
-	length    uint32
-	mOffset   uint32
+	bytesused  uint32
+	length     uint32
+	mOffset    uint32
 	dataOffset uint32
-	reserved  [11]uint32
+	reserved   [11]uint32
 }
 
 type v4l2Source struct {
 	fd        int
 	w, h      int
-	lastIdx   int
 	rgaFmt    int32
 	srcBytes  int
 	stride    int
@@ -82,16 +83,18 @@ func ioctl(fd int, req uintptr, arg unsafe.Pointer) error {
 func (s *v4l2Source) setFmt(pix uint32) (uint32, int, int, error) {
 	var f [208]byte
 	*(*uint32)(unsafe.Pointer(&f[0])) = v4l2BufTypeCapture
-	*(*uint32)(unsafe.Pointer(&f[8])) = uint32(s.w)    // pix_mp.width（union 基址 8）
-	*(*uint32)(unsafe.Pointer(&f[12])) = uint32(s.h)   // pix_mp.height
-	*(*uint32)(unsafe.Pointer(&f[16])) = pix           // pix_mp.pixelformat
-	*(*uint32)(unsafe.Pointer(&f[20])) = v4l2FieldAny  // pix_mp.field
-	f[8+180] = 1 // pix_mp.num_planes（实测 180 相对 pix_mp）
+	*(*uint32)(unsafe.Pointer(&f[8])) = uint32(s.w)   // pix_mp.width（union 基址 8）
+	*(*uint32)(unsafe.Pointer(&f[12])) = uint32(s.h)  // pix_mp.height
+	*(*uint32)(unsafe.Pointer(&f[16])) = pix          // pix_mp.pixelformat
+	*(*uint32)(unsafe.Pointer(&f[20])) = v4l2FieldAny // pix_mp.field
+	f[8+180] = 1                                      // pix_mp.num_planes（实测 180 相对 pix_mp）
 	if err := ioctl(s.fd, vidiocSFmt, unsafe.Pointer(&f[0])); err != nil {
 		return 0, 0, 0, err
 	}
+	s.w = int(*(*uint32)(unsafe.Pointer(&f[8])))
+	s.h = int(*(*uint32)(unsafe.Pointer(&f[12])))
 	got := *(*uint32)(unsafe.Pointer(&f[16]))
-	stride := int(*(*uint32)(unsafe.Pointer(&f[8+20+4])))  // plane_fmt[0].bytesperline
+	stride := int(*(*uint32)(unsafe.Pointer(&f[8+20+4]))) // plane_fmt[0].bytesperline
 	size := int(*(*uint32)(unsafe.Pointer(&f[8+20])))     // plane_fmt[0].sizeimage
 	return got, stride, size, nil
 }
@@ -216,7 +219,6 @@ func (s *v4l2Source) next(fb *frameBuf) error {
 		return fmt.Errorf("dqbuf: %v", err)
 	}
 	fb.aux = int(*(*uint32)(unsafe.Pointer(&b[vbIndex])))
-	s.lastIdx = fb.aux
 	return nil
 }
 
@@ -225,19 +227,21 @@ func (s *v4l2Source) prep(fb *frameBuf, set int) (float32, int, int) {
 	if i < 0 || i >= v4l2NBuf {
 		return 1, 0, 0
 	}
+	ws := s.stride
+	if s.rgaFmt == rkFmtYUYV { ws /= 2 } // RGA stride is pixels, V4L2 stride is bytes
 	if s.useExp && s.expFds[i] >= 0 {
 		// 零拷贝：RGA 直接读摄像头 dma-buf（几何不变，灰边只填一次）
 		doFill := !s.filled[set]
-		if sc, px, py, ok := rgaLetterboxFd(set, doFill, s.expFds[i], s.rgaFmt, s.w, s.h, s.stride, s.h, s.srcBytes); ok {
+		if sc, px, py, ok := rgaLetterboxFd(set, doFill, s.expFds[i], s.rgaFmt, s.w, s.h, ws, s.h, s.srcBytes); ok {
 			s.filled[set] = true
 			return sc, px, py
 		}
 	}
 	// 回退：拷进 RGA 源 buffer 再 blit
 	if s.maps[i] != nil && len(s.maps[i]) >= s.srcBytes && s.srcBytes <= len(rgaSrcBuf) {
-		copy(rgaSrcBuf, s.maps[i][:s.srcBytes])
 		rgaMu.Lock()
-		sc, px, py, ok := blitInto(set, true, rgaSrcFd, s.rgaFmt, s.w, s.h, s.stride, s.h, s.srcBytes)
+		copy(rgaSrcBuf, s.maps[i][:s.srcBytes])
+		sc, px, py, ok := blitInto(set, true, rgaSrcFd, s.rgaFmt, s.w, s.h, ws, s.h, s.srcBytes)
 		rgaMu.Unlock()
 		if ok {
 			if !inZeroCopy {
@@ -280,11 +284,26 @@ func (s *v4l2Source) close() error {
 	return syscall.Close(s.fd)
 }
 
-// lastFd: 最近一帧的 dma-buf fd (供 anno 转换用; 当前帧在 inferJob 里已 release,
-// 这里持有 s.maps/EXPBUF 映射, dqbuf 前该 fd 保持有效)
-func (s *v4l2Source) lastFd(_ interface{}) int32 {
-	if s.lastIdx >= 0 && s.lastIdx < v4l2NBuf && s.useExp {
-		return s.expFds[s.lastIdx]
+// preview converts the exact dequeued frame while it is still owned by this job.
+// QBUF must happen only after inference AND this read have completed.
+func (s *v4l2Source) preview(fb *frameBuf) bool {
+	i := fb.aux
+	if i < 0 || i >= v4l2NBuf {
+		return false
 	}
-	return -1
+	rgaMu.Lock()
+	defer rgaMu.Unlock()
+	fd := s.expFds[i]
+	if !s.useExp || fd < 0 {
+		if len(s.maps[i]) < s.srcBytes || len(rgaSrcBuf) < s.srcBytes {
+			return false
+		}
+		copy(rgaSrcBuf, s.maps[i][:s.srcBytes])
+		fd = rgaSrcFd
+	}
+	ws := s.stride
+	if s.rgaFmt == rkFmtYUYV {
+		ws /= 2
+	}
+	return rgaConvertToBGR(fd, s.rgaFmt, s.w, s.h, ws, s.h, s.srcBytes)
 }

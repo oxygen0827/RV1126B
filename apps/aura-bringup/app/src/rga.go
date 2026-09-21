@@ -15,10 +15,10 @@ import (
 const (
 	rkFmtRGB888 = 0x2 << 8
 	rkFmtBGR888 = 0x7 << 8
-	rkFmtNV12   = 0xa << 8 // RK_FORMAT_YCbCr_420_SP
-	rkFmtYUYV   = 0x8 << 8 // 422（板上无摄像头未实测，以 librga 头为准）
+	rkFmtNV12   = 0xa << 8  // RK_FORMAT_YCbCr_420_SP
+	rkFmtYUYV   = 0x1c << 8 // RK_FORMAT_YUYV_422 (board rga.h)
 
-	// rga_info_t 字段偏移（arm32 C AAPCS）
+	// rga_info_t 字段偏移（Linux aarch64；板端 drmrga.h 核验）
 	riFd        = 0
 	riFormat    = 28
 	riRect      = 32 // rga_rect(32B): x=0 y=4 w=8 h=12 ws=16 hs=20 fmt=24 size=28
@@ -43,18 +43,33 @@ var (
 	rgaLibInit func() int32
 	rgaLibBlit func(src, dst, pat unsafe.Pointer) int32
 
-	rgaSrcBuf  []byte   // mmap 的源 dma-buf（HTTP 模式帧暂存）
-	rgaSrcFd   int32
-	rgaDstBufs [2][]byte // mmap 的目标 dma-buf（416x416x3，零拷贝时即 NPU 输入）
-	rgaDstFds  [2]int32
-	rgaAnnoBuf []byte   // mmap 的 640x360x3 BGR 输出（实时标注视频用，16:9）
-	rgaAnnoFd  int32
-	rgaMu      sync.Mutex
+	rgaSrcBuf   []byte // mmap 的源 dma-buf（HTTP 模式帧暂存）
+	rgaSrcFd    int32
+	rgaDstBufs  [2][]byte // mmap 的目标 dma-buf（416x416x3，零拷贝时即 NPU 输入）
+	rgaDstFds   [2]int32
+	rgaAnnoBuf  []byte // mmap 的预览 BGR 输出（横屏 640x360 / 竖屏 360x640）
+	rgaAnnoFd   int32
+	rgaMu       sync.Mutex
+	rgaPreviewW = 640
+	rgaPreviewH = 360
 )
 
 func rgaPutI(b []byte, off int, v int32) { *(*int32)(unsafe.Pointer(&b[off])) = v }
 
-var rgaRot180 bool // 摄像头倒装 180° 采集侧旋转
+var rgaRotation int32 // Android HAL_TRANSFORM_*，写入源描述符
+
+func orientedDims(w, h int) (int, int) {
+	if rgaRotation == 0x04 || rgaRotation == 0x07 { // ROT_90 / ROT_270
+		return h, w
+	}
+	return w, h
+}
+
+func applySourceRotation(info []byte) {
+	if rgaRotation != 0 {
+		rgaPutI(info, 72, rgaRotation)
+	}
+}
 
 func rgaMakeInfo(fd int32, format int32, x, y, w, h, ws, hs int32, sizeBytes int32) []byte {
 	b := make([]byte, riSize)
@@ -73,9 +88,6 @@ func rgaMakeInfo(fd int32, format int32, x, y, w, h, ws, hs int32, sizeBytes int
 	rgaPutI(b, riScaleMode, 1) // bilinear
 	rgaPutI(b, riInFence, -1)
 	rgaPutI(b, riOutFence, -1)
-	if rgaRot180 {
-		rgaPutI(b, 72, 180) // rga_info.rotation (arm64 实测 offset 72)
-	}
 	return b
 }
 
@@ -125,7 +137,11 @@ func rgaSetup() error {
 		}
 		rgaDstFds[s], rgaDstBufs[s] = dfd, dbuf
 	}
-	// 640x360 BGR 标注输出 buffer（16:9，与摄像头一致）
+	rgaPreviewW, rgaPreviewH = 640, 360
+	if w, h := orientedDims(rgaPreviewW, rgaPreviewH); w != rgaPreviewW {
+		rgaPreviewW, rgaPreviewH = w, h
+	}
+	// 横屏和竖屏像素数相同，分配一块预览/录像输出 buffer。
 	afd, abuf, err := dmaAlloc(640 * 360 * 3)
 	if err != nil {
 		return fmt.Errorf("anno buf: %w", err)
@@ -167,8 +183,13 @@ func letterboxGeom(w, h int) (scale float32, padX, padY, nw, nh int) {
 	if float32(inputSize)/float32(h) < scale {
 		scale = float32(inputSize) / float32(h)
 	}
-	nw = int(float32(w) * scale)
-	nh = int(float32(h) * scale)
+	// Integer geometry avoids float32 truncating 720 * (416/1280) to 233.
+	longest := w
+	if h > longest {
+		longest = h
+	}
+	nw = (w*inputSize + longest/2) / longest
+	nh = (h*inputSize + longest/2) / longest
 	if nw < 1 {
 		nw = 1
 	}
@@ -183,11 +204,13 @@ func letterboxGeom(w, h int) (scale float32, padX, padY, nw, nh int) {
 // blitInto 将 srcFd 描述的帧 RGA 缩放+格式转换进 rgaDstBufs[set]（letterbox 几何）
 // doFill=false 时跳过灰边填充（视频流几何不变，pad 区域填充一次即可）
 func blitInto(set int, doFill bool, srcFd int32, srcFmt int32, w, h, ws, hs, srcBytes int) (float32, int, int, bool) {
-	scale, padX, padY, nw, nh := letterboxGeom(w, h)
+	viewW, viewH := orientedDims(w, h)
+	scale, padX, padY, nw, nh := letterboxGeom(viewW, viewH)
 	if doFill {
 		fillPads(rgaDstBufs[set], padX, padY, nw, nh)
 	}
 	srcInfo := rgaMakeInfo(srcFd, srcFmt, 0, 0, int32(w), int32(h), int32(ws), int32(hs), int32(srcBytes))
+	applySourceRotation(srcInfo)
 	dstInfo := rgaMakeInfo(rgaDstFds[set], rkFmtRGB888, int32(padX), int32(padY), int32(nw), int32(nh),
 		inputSize, inputSize, inputSize*inputSize*3)
 	if r := rgaLibBlit(unsafe.Pointer(&srcInfo[0]), unsafe.Pointer(&dstInfo[0]), nil); r != 0 {
@@ -196,23 +219,15 @@ func blitInto(set int, doFill bool, srcFd int32, srcFmt int32, w, h, ws, hs, src
 	return scale, padX, padY, true
 }
 
-// rgaConvertToBGR2: 当前帧 fd -> rgaAnnoBuf (640x360 BGR), 供方案A实时叠加
-func rgaConvertToBGR2(srcFd int32, srcFmt int32, w, h int) bool {
-	if srcFd < 0 || !rgaOK {
-		return false
-	}
-	// NV12: ws=行字节, hs=亮度行数, srcBytes=1.5x; dst 固定 640x480 BGR(在 rgaConvertToBGR 内部)
-	return rgaConvertToBGR(srcFd, srcFmt, w, h, w, h, w*h*3/2)
-}
-
-// rgaConvertToBGR 用 RGA 把源帧（NV12/YUYV dma-buf fd）转成 640x360 BGR 到 rgaAnnoBuf
+// rgaConvertToBGR 用 RGA 把源帧转成等比例方向正确的预览 BGR。
 func rgaConvertToBGR(srcFd int32, srcFmt int32, w, h, ws, hs, srcBytes int) bool {
 	if !rgaOK || srcFd < 0 {
 		return false
 	}
-	// dst: rgaAnnoBuf 固定 640x360 BGR; src: NV12 (w,h) with (ws,hs)
 	srcInfo := rgaMakeInfo(srcFd, srcFmt, 0, 0, int32(w), int32(h), int32(ws), int32(hs), int32(srcBytes))
-	dstInfo := rgaMakeInfo(rgaAnnoFd, rkFmtBGR888, 0, 0, 640, 360, 640, 360, 640*360*3)
+	applySourceRotation(srcInfo)
+	dstInfo := rgaMakeInfo(rgaAnnoFd, rkFmtBGR888, 0, 0, int32(rgaPreviewW), int32(rgaPreviewH),
+		int32(rgaPreviewW), int32(rgaPreviewH), 640*360*3)
 	if r := rgaLibBlit(unsafe.Pointer(&srcInfo[0]), unsafe.Pointer(&dstInfo[0]), nil); r != 0 {
 		return false
 	}

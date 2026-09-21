@@ -1,0 +1,28 @@
+active
+active
+active
+HOTSPOT READY: join CHIFORM-SETUP -> http://192.168.4.1
+test_failed_sta_restores_hotspot_under_set_e (test_wifi.PortalTests.test_failed_sta_restores_hotspot_under_set_e) ... ok
+test_os_probes_and_unknown_hosts_redirect_without_scan (test_wifi.PortalTests.test_os_probes_and_unknown_hosts_redirect_without_scan) ... {"event": "captive_probe", "host": "captive.apple.com", "path": "/hotspot-detect.html"}
+{"event": "captive_probe", "host": "captive.apple.com", "path": "/hotspot-detect.html"}
+{"event": "captive_probe", "host": "connectivitycheck.gstatic.com", "path": "/generate_204"}
+{"event": "captive_probe", "host": "connectivitycheck.gstatic.com", "path": "/generate_204"}
+{"event": "captive_probe", "host": "www.msftconnecttest.com", "path": "/connecttest.txt"}
+{"event": "captive_probe", "host": "www.msftconnecttest.com", "path": "/connecttest.txt"}
+{"event": "captive_probe", "host": "connect.rom.miui.com", "path": "/unknown-probe"}
+{"event": "captive_probe", "host": "connect.rom.miui.com", "path": "/unknown-probe"}
+ok
+test_scan_preserves_escaped_ssid_without_disrupting_ap (test_wifi.PortalTests.test_scan_preserves_escaped_ssid_without_disrupting_ap) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.829s
+
+OK
+frame 9059 | prep   1.5 run  26.8 dec  0.8 | persons 0 | avg 30.0 FPS
+frame 9089 | prep   1.4 run  26.5 dec  0.8 | persons 0 | avg 30.0 FPS
+frame 9119 | prep   1.5 run  26.9 dec  0.8 | persons 0 | avg 30.0 FPS
+frame 9149 | prep   1.4 run  26.5 dec  0.8 | persons 0 | avg 30.0 FPS
+9f00ca568bb770324f4138538a1890cf7751b15f2e38bdae77c4d6e18646f6a7  /root/yolov8s-pose/yolosrv-new
+rkaiq_3A_server
+yolosrv-new
+luckfox_lvgl_de

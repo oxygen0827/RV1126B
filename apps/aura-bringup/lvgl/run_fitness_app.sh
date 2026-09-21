@@ -24,7 +24,7 @@ if [ -f "$APP_DIR/tts.env" ]; then
 fi
 mkdir -p /userdata/fitness/tts
 setsid ./yolosrv-new -model yolov8s_pose_416_w8a8.rknn -v4l2 /dev/video13 \
-  -vw 1280 -vh 720 -frames 100000 -conf 0.4 -smooth 0.5 -rotate180 \
+  -vw 1280 -vh 720 -frames 100000 -conf 0.4 -smooth 0.5 -rotate90 \
   -demo -session-file /tmp/fitness_session.trigger -session-seconds 20 \
   -movement air_squat -correction-fps 25 -jsonl /tmp/fitness_live.jsonl $TTS_ARGS 8080 \
   > /tmp/fitness_app.log 2>&1 < /dev/null &

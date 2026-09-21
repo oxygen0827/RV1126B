@@ -2,9 +2,10 @@
 // 推理: purego dlopen librknnmrt.so 直调 rknn_api（预分配 mem，支持 dma-buf fd 零拷贝输入）
 // 解码: cut9 原始头输出 + DFL softmax + 锚点仿射 + sigmoid + NMS，全部 Go/fp32
 // 模式:
-//   ./yolosrv_rga [port]                        HTTP 服务（POST /infer?w=W&h=H body=raw BGR）
-//   ./yolosrv_rga -video FILE -vw W -vh H ...   原始 BGR 视频文件，流水线跑 FPS（调试/基准）
-//   ./yolosrv_rga -v4l2 /dev/videoN -vw W ...   V4L2 摄像头（EXPBUF 零拷贝，已实测）
+//
+//	./yolosrv_rga [port]                        HTTP 服务（POST /infer?w=W&h=H body=raw BGR）
+//	./yolosrv_rga -video FILE -vw W -vh H ...   原始 BGR 视频文件，流水线跑 FPS（调试/基准）
+//	./yolosrv_rga -v4l2 /dev/videoN -vw W ...   V4L2 摄像头（EXPBUF 零拷贝，已实测）
 package main
 
 import (
@@ -38,9 +39,9 @@ func init() {
 const (
 	modelPathDefault = "/root/pose_deploy/yolov8n-pose/y8pose_cut9_tk160.rknn"
 	libPath          = "/oem/usr/lib/librknnmrt.so"
-	inputSize = 416
-	padColor  = 56
-	nmsThres  = 0.45
+	inputSize        = 416
+	padColor         = 56
+	nmsThres         = 0.45
 )
 
 // rknn_tensor_attr（arm32 对齐布局，与 rknn_api.h 一致）
@@ -71,13 +72,13 @@ type ioNum struct {
 }
 
 var (
-	rkInit         func(ctx unsafe.Pointer, model unsafe.Pointer, size uint32, flag uint32, ext unsafe.Pointer) int32
-	rkQuery        func(ctx uintptr, cmd int32, attr unsafe.Pointer, size uint32) int32
-	rkCreateMem    func(ctx uintptr, size uint32) uintptr
-	rkCreateMemFd  func(ctx uintptr, fd int32, vir unsafe.Pointer, size uint32) uintptr
-	rkSetIoMem     func(ctx uintptr, mem uintptr, attr unsafe.Pointer) int32
-	rkRun          func(ctx uintptr, ext unsafe.Pointer) int32
-	rkDestroyMem   func(ctx uintptr, mem uintptr) int32
+	rkInit        func(ctx unsafe.Pointer, model unsafe.Pointer, size uint32, flag uint32, ext unsafe.Pointer) int32
+	rkQuery       func(ctx uintptr, cmd int32, attr unsafe.Pointer, size uint32) int32
+	rkCreateMem   func(ctx uintptr, size uint32) uintptr
+	rkCreateMemFd func(ctx uintptr, fd int32, vir unsafe.Pointer, size uint32) uintptr
+	rkSetIoMem    func(ctx uintptr, mem uintptr, attr unsafe.Pointer) int32
+	rkRun         func(ctx uintptr, ext unsafe.Pointer) int32
+	rkDestroyMem  func(ctx uintptr, mem uintptr) int32
 )
 
 var (
@@ -203,10 +204,10 @@ func setup() error {
 		}
 		nm := m[1]
 		c2v := int(a.dims[4])
-	if c2v == 0 {
-		c2v = 1 // nDims=4 plain NCHW: no inner packing
-	}
-	t := &outTensor{attr: a, c2: c2v, hh: int(a.dims[2]), ww: int(a.dims[3])}
+		if c2v == 0 {
+			c2v = 1 // nDims=4 plain NCHW: no inner packing
+		}
+		t := &outTensor{attr: a, c2: c2v, hh: int(a.dims[2]), ww: int(a.dims[3])}
 		t.grid = grids[nm[len(nm)-1]-'0']
 		outTensors[nm] = t
 	}
@@ -230,7 +231,8 @@ func setup() error {
 
 var zcFlag = flag.Bool("zc", true, "zero-copy dma-buf fd input")
 var smoothFlag = flag.Float64("smooth", 0.5, "逐帧 EMA 平滑系数（当前帧权重，0=关闭；仅视频/摄像头模式）")
-var rotFlag = flag.Bool("rotate180", false, "摄像头画面旋转180度（倒装镜头）")
+var rotFlag = flag.Bool("rotate180", false, "摄像头画面旋转180度")
+var rot90Flag = flag.Bool("rotate90", false, "摄像头画面顺时针旋转90度（竖装镜头）")
 var modelFlag = flag.String("model", modelPathDefault, "rknn 模型路径")
 var confFlag = flag.Float64("conf", 0.5, "检测置信度阈值") // CONF_FLAG_DONE
 
@@ -322,23 +324,10 @@ func sigmoid(v float32) float32 {
 
 // letterbox: raw BGR -> inputSize x inputSize RGB（双线性，软件回退路径）
 func letterbox(bgr []byte, w, h int, dst []byte) (scale float32, padX, padY int) {
-	scale = float32(inputSize) / float32(w)
-	if float32(inputSize)/float32(h) < scale {
-		scale = float32(inputSize) / float32(h)
-	}
-	nw := int(float32(w) * scale)
-	nh := int(float32(h) * scale)
-	if nw < 1 {
-		nw = 1
-	}
-	if nh < 1 {
-		nh = 1
-	}
+	scale, padX, padY, nw, nh := letterboxGeom(w, h)
 	for i := range dst {
 		dst[i] = padColor
 	}
-	padX = (inputSize - nw) / 2
-	padY = (inputSize - nh) / 2
 	for y := 0; y < nh; y++ {
 		sy := (float32(y)+0.5)/scale - 0.5
 		y0 := int(math.Floor(float64(sy)))
@@ -630,13 +619,13 @@ type frameBuf struct {
 }
 
 type inferJob struct {
-	set          int
-	frameIdx     int
-	scale        float32
-	padX, padY   int
-	prepMs       float64
-	runMs        float64
-	frame        *frameBuf
+	set        int
+	frameIdx   int
+	scale      float32
+	padX, padY int
+	prepMs     float64
+	runMs      float64
+	frame      *frameBuf
 }
 
 var jsonlFile *os.File
@@ -690,12 +679,24 @@ func nv12ToBGR(nv12 []byte, w, h int) []byte {
 			vVal := int(nv12[uvOff+(y/2)*w+(x/2)*2+1]) - 128
 
 			r := yVal + ((vVal * 1436) >> 10)
-			g := yVal - ((uVal * 352 + vVal * 731) >> 10)
+			g := yVal - ((uVal*352 + vVal*731) >> 10)
 			b := yVal + ((uVal * 1814) >> 10)
 
-			if r < 0 { r = 0 } else if r > 255 { r = 255 }
-			if g < 0 { g = 0 } else if g > 255 { g = 255 }
-			if b < 0 { b = 0 } else if b > 255 { b = 255 }
+			if r < 0 {
+				r = 0
+			} else if r > 255 {
+				r = 255
+			}
+			if g < 0 {
+				g = 0
+			} else if g > 255 {
+				g = 255
+			}
+			if b < 0 {
+				b = 0
+			} else if b > 255 {
+				b = 255
+			}
 
 			idx := (y*w + x) * 3
 			bgr[idx] = byte(b)
@@ -720,9 +721,21 @@ func yuyvToBGR(yuyv []byte, w, h int) []byte {
 				r := yVal + ((v * 1436) >> 10)
 				g := yVal - ((u*352 + v*731) >> 10)
 				b := yVal + ((u * 1814) >> 10)
-				if r < 0 { r = 0 } else if r > 255 { r = 255 }
-				if g < 0 { g = 0 } else if g > 255 { g = 255 }
-				if b < 0 { b = 0 } else if b > 255 { b = 255 }
+				if r < 0 {
+					r = 0
+				} else if r > 255 {
+					r = 255
+				}
+				if g < 0 {
+					g = 0
+				} else if g > 255 {
+					g = 255
+				}
+				if b < 0 {
+					b = 0
+				} else if b > 255 {
+					b = 255
+				}
 				idx := (y*w + x + i) * 3
 				bgr[idx] = byte(b)
 				bgr[idx+1] = byte(g)
@@ -740,9 +753,9 @@ type frameJSON struct {
 	Person []perJSON `json:"persons"`
 }
 type perJSON struct {
-	Score float32      `json:"score"`
-	Box   [4]float32   `json:"box"` // 像素坐标 x1,y1,x2,y2
-	Kp    [17][3]float32 `json:"kp"` // 像素坐标 x,y + score
+	Score float32        `json:"score"`
+	Box   [4]float32     `json:"box"` // 像素坐标 x1,y1,x2,y2
+	Kp    [17][3]float32 `json:"kp"`  // 像素坐标 x,y + score
 }
 
 // runPipeline 三级流水线：取帧(source) -> 预处理+推理(infer) -> 解码+统计(decode)
@@ -790,7 +803,6 @@ func runPipeline(src frameSource, frames int, annoPath, rawAnnoPath string, brig
 			set := <-freeSets
 			tp := time.Now()
 			scale, padX, padY := src.prep(fb, set)
-			src.release(fb) // v4l2: QBUF 还 buffer；文件源: no-op
 			prepMs := float64(time.Since(tp).Microseconds()) / 1000.0
 			if !dualCtx {
 				if err := attachOutSet(set); err != nil {
@@ -846,7 +858,7 @@ func runPipeline(src frameSource, frames int, annoPath, rawAnnoPath string, brig
 					opened, allow := sessionTick()
 					if opened {
 						publishFitnessCue(0, "FORM")
-						if err := demoRecS.recStart(640, 360, *correctionFpsFlag, true); err != nil {
+						if err := demoRecS.recStart(rgaPreviewW, rgaPreviewH, *correctionFpsFlag, true); err != nil {
 							fmt.Println("demo: rec start:", err)
 							_ = os.WriteFile(demoRecordErr, []byte(err.Error()), 0o644)
 							session.forceClose()
@@ -864,7 +876,7 @@ func runPipeline(src frameSource, frames int, annoPath, rawAnnoPath string, brig
 						if len(keep) > 0 {
 							sessionKeep = []detection{pickMain(keep)}
 						}
-						demoRecS.writePoseFrame(j.frameIdx, sessionKeep, j.scale, j.padX, j.padY)
+						demoRecS.writePoseFrame(j.frameIdx, sessionKeep, j.scale, j.padX, j.padY, vw, vh)
 						if len(sessionKeep) == 0 {
 							publishFitnessCue(0, "NO PERSON")
 						}
@@ -873,11 +885,14 @@ func runPipeline(src frameSource, frames int, annoPath, rawAnnoPath string, brig
 			}
 			if v4l2Src, ok2 := src.(*v4l2Source); ok2 {
 				if rgaOK && len(rgaAnnoBuf) > 0 {
-					if rgaConvertToBGR2(v4l2Src.lastFd(nil), v4l2Src.rgaFmt, v4l2Src.w, v4l2Src.h) {
+					if v4l2Src.preview(j.frame) {
 						fpsNow := float64(n) / time.Since(start).Seconds()
-						pushAnnotated(rgaAnnoBuf, 640, 360, keep, j.scale, j.padX, j.padY, fpsNow, v4l2Src.w, v4l2Src.h)
+						// Publish recording first: MJPEG annotations must not enter raw video.
 						if *demoFlag {
-							demoRecS.writeBGRFrame(rgaAnnoBuf, 640, 360, keep, j.scale, j.padX, j.padY, v4l2Src.w, v4l2Src.h)
+							demoRecS.writeBGRFrame(rgaAnnoBuf, rgaPreviewW, rgaPreviewH, keep, j.scale, j.padX, j.padY, vw, vh)
+						}
+						if mjEnabled {
+							pushAnnotated(rgaAnnoBuf, rgaPreviewW, rgaPreviewH, keep, j.scale, j.padX, j.padY, fpsNow, vw, vh)
 						}
 					}
 				}
@@ -887,13 +902,13 @@ func runPipeline(src frameSource, frames int, annoPath, rawAnnoPath string, brig
 				fmt.Printf("frame %4d | prep %5.1f run %5.1f dec %4.1f | persons %d | avg %.1f FPS\n",
 					j.frameIdx, j.prepMs, j.runMs, decMs, len(keep), float64(n)/el)
 			}
-		if annoPath != "" && !annotated && len(keep) > 0 && n >= 5 && len(j.frame.data) >= vw*vh*3 {
-			annotate(j.frame.data, vw, vh, keep, j.scale, j.padX, j.padY, annoPath)
-			annotated = true
-		}
-		if rawAnnoFile != nil && len(j.frame.bgr) >= vw*vh*3 {
-			annotateToRaw(j.frame.bgr, vw, vh, keep, j.scale, j.padX, j.padY, rawAnnoFile, brightness)
-		}
+			if annoPath != "" && !annotated && len(keep) > 0 && n >= 5 && len(j.frame.data) >= vw*vh*3 {
+				annotate(j.frame.data, vw, vh, keep, j.scale, j.padX, j.padY, annoPath)
+				annotated = true
+			}
+			if rawAnnoFile != nil && len(j.frame.bgr) >= vw*vh*3 {
+				annotateToRaw(j.frame.bgr, vw, vh, keep, j.scale, j.padX, j.padY, rawAnnoFile, brightness)
+			}
 			if jsonlFile != nil {
 				fj := frameJSON{Frame: j.frameIdx, FPS: float64(n) / time.Since(start).Seconds(), RunMs: j.runMs}
 				for _, d := range keep {
@@ -909,6 +924,7 @@ func runPipeline(src frameSource, frames int, annoPath, rawAnnoPath string, brig
 				jsonlFile.Write(lb)
 				jsonlFile.Write([]byte("\n"))
 			}
+			src.release(j.frame) // camera ownership ends after preview/recording
 			freeBufs <- j.frame
 		}
 		el := time.Since(start).Seconds()
@@ -1310,7 +1326,15 @@ func main() {
 		jsonl     = flag.String("jsonl", "", "write per-frame detections JSON lines")
 	)
 	flag.Parse()
-	rgaRot180 = *rotFlag
+	if *rot90Flag && *rotFlag {
+		fmt.Println("choose only one of -rotate90 and -rotate180")
+		os.Exit(2)
+	}
+	if *rot90Flag {
+		rgaRotation = 0x04 // HAL_TRANSFORM_ROT_90, clockwise
+	} else if *rotFlag {
+		rgaRotation = 0x03 // HAL_TRANSFORM_ROT_180
+	}
 	// 方案A: 任何模式(含v4l2/文件)下, 只要带端口参数就起 HTTP+/stream
 	httpServeFlag := ""
 	if flag.NArg() > 0 {
@@ -1384,7 +1408,8 @@ func main() {
 			os.Exit(1)
 		}
 		defer src.close()
-		if err := runPipeline(src, *frames, *anno, *rawAnno, float32(*bright), *vw, *vh); err != nil {
+		viewW, viewH := orientedDims(src.w, src.h)
+		if err := runPipeline(src, *frames, *anno, *rawAnno, float32(*bright), viewW, viewH); err != nil {
 			fmt.Println("pipeline:", err)
 			os.Exit(1)
 		}
@@ -1400,9 +1425,11 @@ func main() {
 }
 
 var httpHandlersOnce sync.Once
+var mjEnabled bool
 
 func registerHTTPHandlers() {
 	httpHandlersOnce.Do(func() {
+		mjEnabled = true
 		http.HandleFunc("/stream", mjpegHandler)
 		http.HandleFunc("/infer", inferHandler)
 		http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

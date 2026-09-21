@@ -1,5 +1,7 @@
 .DS_Store
 ._*
+__pycache__/
+*.py[cod]
 
 # Upstream source trees and vendor packages are local evidence, not project code.
 reference/

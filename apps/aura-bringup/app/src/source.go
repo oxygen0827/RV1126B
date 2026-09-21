@@ -7,10 +7,10 @@ import (
 )
 
 type frameSource interface {
-	newBuf() *frameBuf                       // 分配帧缓冲（文件源优先 dma-buf 直读）
-	next(fb *frameBuf) error                 // 取一帧（文件: 读字节; v4l2: DQBUF）
+	newBuf() *frameBuf                              // 分配帧缓冲（文件源优先 dma-buf 直读）
+	next(fb *frameBuf) error                        // 取一帧（文件: 读字节; v4l2: DQBUF）
 	prep(fb *frameBuf, set int) (float32, int, int) // 预处理进 NPU 输入 set（RGA letterbox）
-	release(fb *frameBuf)                    // 预处理完成后归还（v4l2: QBUF）
+	release(fb *frameBuf)                           // 推理和预览都完成后归还（v4l2: QBUF）
 	close() error
 }
 

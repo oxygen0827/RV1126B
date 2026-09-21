@@ -113,7 +113,7 @@ func (p *poseSeqWriter) put(b []byte) {
 }
 
 // writeFrame 写一帧：单人场景只保留置信度最高的人；该帧无人也写空 targets 行
-func (p *poseSeqWriter) writeFrame(frameIdx int, keep []detection, scale float32, padX, padY int) {
+func (p *poseSeqWriter) writeFrame(frameIdx int, keep []detection, scale float32, padX, padY, srcW, srcH int) {
 	if p.t0.IsZero() {
 		p.t0 = time.Now() // 懒设置：首帧 t_ms=0，规避协议首帧容差（≤ 2×1000/fps）风险
 	}
@@ -131,7 +131,8 @@ func (p *poseSeqWriter) writeFrame(frameIdx int, keep []detection, scale float32
 			}
 		}
 		d := keep[best]
-		fw, fh := float32(p.vw), float32(p.vh)
+		// The model transform belongs to the camera, not the smaller encoded video.
+		fw, fh := float32(srcW), float32(srcH)
 		// 去 letterbox（与 -jsonl 相同：(v-pad)/scale 得 vw×vh 画面像素），再除以 vw/vh 归一化；
 		// clamp01 单调，保证 w,h >= 0 且 bbox 四值均在 [0,1]
 		bx1 := clamp01((d.x1 - float32(padX)) / scale / fw)

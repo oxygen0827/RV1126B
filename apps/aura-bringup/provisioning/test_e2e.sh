@@ -6,7 +6,7 @@ rm -f /root/yolov8s-pose/upload/* /tmp/fitness_*.trigger /tmp/fitness_local_*.tx
 rm -rf /userdata/fitness/sessions/* 2>/dev/null
 cd /root/yolov8s-pose
 setsid ./yolosrv-new -model yolov8s_pose_416_w8a8.rknn -v4l2 /dev/video13 \
-  -vw 1280 -vh 720 -frames 100000 -conf 0.4 -smooth 0.5 -rotate180 \
+  -vw 1280 -vh 720 -frames 100000 -conf 0.4 -smooth 0.5 -rotate90 \
   -demo -session-file /tmp/fitness_session.trigger -session-seconds 5 \
   -movement air_squat -correction-fps 25 -jsonl /tmp/fitness_live.jsonl 8080 \
   > /tmp/fitness_e2e.log 2>&1 < /dev/null &

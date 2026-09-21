@@ -1,5 +1,18 @@
 # Luckfox Aura 上板与部署记录（2026-09-18）
 
+**2026-09-20 更新：** Wi-Fi 配网与摄像头链路已改用独立 ISP 3A，修复 RGA 旋转、
+帧缓冲持有和录制骨骼归一化。当前实现及验收边界见
+[修复验收记录](evidence/2026-09-19/README.md)，应用源码以 `app/src/` 为准。
+下文保留早期 bring-up 历史，rkipc 共用、固定等待补 IP 等方案已被替换。
+
+手机未弹窗的追加修复：`wifi_redirect.py` 用板内 libnftables 为热点添加 HTTP/DNS DNAT，
+兼容缓存探测 IP 与外部 DNS；通配 DNS 使用 `198.18.0.1`，页面地址仍为
+`http://192.168.4.1/`。已通过板端隔离客户端网络测试，真实手机重新连接验收待完成；
+下文早期“自动弹登录网络”的描述不能作为手机验收证据。
+Apple 探测响应进一步参照 RV1106 健身项目改为 `200 + 完整配网 HTML`；
+`/hotspot-detect.html` 和 `/library/test/success.html` 均覆盖，表单提交固定到本机 IP。
+当前 4 项门户回归和 1 项客户端网络集成通过，真实 iPhone 自动弹窗仍待现场确认。
+
 本目录是 2026-09-18 在 Luckfox Aura（RV1126B）实板上完成的刷机、屏幕适配、模型部署与
 CHIFORM 项目移植的产物归档，用于回退与复现。设备端已生效的改动**同时存在于板子上**，
 本目录是可重新生成的源材料。
@@ -36,7 +49,7 @@ CHIFORM 项目移植的产物归档，用于回退与复现。设备端已生效
 见 `../yolov8s-pose-rv1126b/`（含修复补丁、二进制与 README）：
 - `boardJPEG` NRGBA/3 字节越界 panic → 修为 RGBA
 - v4l2 模式 HTTP 路由缺失（/stream /infer /health 404）→ 统一注册
-- MJPEG 标注缓冲 640x480 → 640x360（16:9），并修正标注坐标缩放（原先按源图坐标画在缩略图上）
+- 竖装相机经 RGA 顺时针旋转为 360x640（9:16），并修正模型、预览、录像和骨骼坐标映射
 - 运行依赖：`librknnrt.so`（板端为 librknnrt.so，交付包写的 librknnmrt.so 需软链）
 
 实测：raw 视频 29.8 FPS；摄像头 17–23 FPS（含 MJPEG 叠加）。
@@ -52,10 +65,8 @@ CHIFORM 项目移植的产物归档，用于回退与复现。设备端已生效
 
 ## 5. 已知问题 / 未完成
 
-- **显示比例**：rkipc 的 VO 把 16:9 画面直接拉满 4:3 面板（官方默认行为，暂回退保留）
-- **摄像头 3A**：3A 在 rkipc 进程内；rkipc 与 yolosrv 同时读 ISP 会报 `sof disorder`，
-  AE/AWB 表现不稳定。单独跑 yolosrv 时可手动设曝光/增益（如 exposure=500, gain=60）
-- **全身入画**：测试机位目前只能拍到上半身，深蹲规则需要髋/膝/脚踝，待重新摆位
+- **光学对焦**：当前模块无 V4L2 focus 控制；官方页面说明通过旋转镜头手动调焦。
+  软件已保持 9:16 比例，但现场仍需把完整人体放入画面并调清镜头。
 - 交付包 Makefile 在包根目录构建会失败（go.mod 在 src/ 下），应 `cd src && go build`
 
 ## 6. 从零复现（新板）
@@ -80,7 +91,7 @@ python3 dtb/patch_boot.py   # 生成 boot-patched.img（需调整脚本内路径
 - `app/demo_upload.sh`：云上传脚本（Aura 适配：库路径修正、尺寸校验改按 meta、A380/A5 尺寸）
 - `app/yolosrv-rv1126b-fitness`：已构建的 aarch64 二进制
 
-**实板验证（全部通过）**：录制 5s → `video.h264`（640x360，MPP 硬编）→ 本地保存
+**实板验证**：早期横屏链路录制 5s → `video.h264`（640x360，MPP 硬编）→ 本地保存
 `/userdata/fitness/sessions/<id>/{video.mp4,pose.jsonl.gz,session_meta.json}` →
 云上传 `report_ready`（会话 ds_ae735c3ef982ce42130c6a0b）。
 
@@ -88,9 +99,9 @@ python3 dtb/patch_boot.py   # 生成 boot-patched.img（需调整脚本内路径
 
 ```bash
 /root/yolov8s-pose/yolosrv-new -model yolov8s_pose_416_w8a8.rknn -v4l2 /dev/video13 \
-  -vw 1280 -vh 720 -frames 100000 -conf 0.4 -smooth 0.5 -rotate180 \
+  -vw 1280 -vh 720 -frames 2147483647 -conf 0.4 -smooth 0.5 -rotate90 \
   -demo -session-file /tmp/fitness_session.trigger -session-seconds 20 \
-  -movement air_squat -correction-fps 25 -jsonl /tmp/fitness_live.jsonl 8080
+  -movement air_squat -correction-fps 25 8080
 # 触发：touch /tmp/fitness_session.trigger（UI 写）
 # 保存：touch /tmp/fitness_save.trigger    上传：touch /tmp/fitness_upload.trigger
 ```
@@ -148,13 +159,13 @@ sh run_lvgl.sh          # 跑 10 秒自测（会先 pkill rkipc 腾出显示）
 - 显示：fbdev 通路可用（跑 LVGL 前需停 rkipc 或 `enable_vo=0`）
 - **布局已适配 640×480**（`lvgl/patch_ui_aura.py`）：
   - 显示尺寸改为面板实际尺寸（`PANEL_W/PANEL_H`），UI 按百分比/居中自动铺满
-  - 会话页纵向坐标重排（720 高设计 → 480 高：标题 16/副标 54/预览 78/倒计时 355/状态 420）
-  - 预览尺寸改 640×360 源 → 480×270 显示区（16:9，不再拉伸）
+  - 会话页使用左侧 225×400 预览和右侧状态区，适配 640×480 面板
+  - 预览尺寸为 360×640 源 → 225×400 显示区（9:16，不拉伸）
   - 路径改 `/root/yolov8s-pose/`（upload 目录、配网脚本）
   - 触摸指向 GT911（`/dev/input/event1`）
 - 截图：`lvgl/screenshot-select-page.png`（选择页）、`lvgl/screenshot-session-page.png`
   （会话页：实时预览 + 倒计时 + 本地纠错状态，已验证 UI↔后端集成）
-- 一键启动：`/root/yolov8s-pose/run_fitness_app.sh`（rkipc 3A + yolosrv 后端 + LVGL UI）
+- 一键启动：`/root/yolov8s-pose/run_fitness_app.sh`（独立 ISP 3A + yolosrv 后端 + LVGL UI）
 - **TTS 已配置**：`/root/yolov8s-pose/tts.env`（`ZHIPU_API_KEY=...`，600 权限，不入库）→
   `run_fitness_app.sh` 自动带 `-tts-api-key` + 缓存目录 `/userdata/fitness/tts`；
   实测云端报告总评已合成并播放（报告"视频内容为天花板照明灯具…"→ 缓存 wav 376KB）。
